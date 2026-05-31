@@ -7,7 +7,8 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
-    "start": "vite --host 0.0.0.0"
+    "start": "vite --host 0.0.0.0",
+    "push:content": "node scripts/push-content-to-supabase.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",

@@ -228,6 +228,7 @@ async function writeFileBackedContent(content) {
   const response = await fetch(CONTENT_API_ENDPOINT, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
     body: JSON.stringify(content)
   });
 
@@ -279,19 +280,19 @@ function PortfolioProvider({ children }) {
           if (needsBrowserDraftBackfill(savedContent, browserDraft)) {
             await writeFileBackedContent(mergedContent);
             if (!cancelled) {
-              setSyncState({ status: "saved", message: "Đã bổ sung dữ liệu trình duyệt vào file lưu" });
+              setSyncState({ status: "saved", message: "Đã bổ sung dữ liệu trình duyệt vào kho lưu" });
             }
             return;
           }
 
-          setSyncState({ status: "loaded", message: "Đã tải dữ liệu từ file lưu" });
+          setSyncState({ status: "loaded", message: "Đã tải dữ liệu từ kho lưu" });
           return;
         }
 
         if (hasDraftContent(browserDraft)) {
           await writeFileBackedContent(browserDraft);
           if (!cancelled) {
-            setSyncState({ status: "saved", message: "Đã chuyển dữ liệu trình duyệt sang file lưu" });
+            setSyncState({ status: "saved", message: "Đã chuyển dữ liệu trình duyệt sang kho lưu" });
           }
           return;
         }
@@ -301,7 +302,7 @@ function PortfolioProvider({ children }) {
         if (!cancelled) {
           setSyncState({
             status: "error",
-            message: "Chưa lưu được vào file, đang dùng localStorage"
+            message: "Chưa đồng bộ được, đang dùng localStorage"
           });
           console.warn("File-backed content sync unavailable", error);
         }
@@ -321,12 +322,12 @@ function PortfolioProvider({ children }) {
 
     writeFileBackedContent(nextContent)
       .then(() => {
-        setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào file" });
+        setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào kho lưu" });
       })
       .catch((error) => {
         setSyncState({
           status: "error",
-          message: "Lưu file lỗi, dữ liệu vẫn còn trong localStorage"
+          message: "Lưu kho dữ liệu lỗi, dữ liệu vẫn còn trong localStorage"
         });
         console.warn("Unable to save file-backed content", error);
       });
@@ -341,12 +342,34 @@ function PortfolioProvider({ children }) {
     projectsDraft,
     newsDraft,
     contactDraft,
-    login(password) {
+    async login(password) {
+      try {
+        const response = await fetch("/api/admin-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ password })
+        });
+
+        if (response.ok) {
+          setSession(true);
+          return true;
+        }
+
+        if (response.status === 401 || response.status === 403) return false;
+      } catch (error) {
+        console.warn("Admin login API unavailable, using local fallback", error);
+      }
+
       const accepted = password === ADMIN_PASSWORD;
       if (accepted) setSession(true);
       return accepted;
     },
     logout() {
+      fetch("/api/admin-logout", {
+        method: "POST",
+        credentials: "same-origin"
+      }).catch(() => {});
       setSession(false);
     },
     toggleTheme() {
@@ -1635,13 +1658,19 @@ function AdminLogin() {
   const { login } = usePortfolioContent();
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
-    if (!login(password)) {
+    setIsSubmitting(true);
+    const accepted = await login(password);
+    setIsSubmitting(false);
+
+    if (!accepted) {
       setError("Sai mật khẩu admin.");
       return;
     }
+
     setError("");
   }
 
@@ -1659,7 +1688,9 @@ function AdminLogin() {
             placeholder="Nhập mật khẩu"
           />
           {error ? <p className="form-error">{error}</p> : null}
-          <button className="button" type="submit">Đăng nhập</button>
+          <button className="button" type="submit" disabled={isSubmitting}>
+            {isSubmitting ? "Đang đăng nhập..." : "Đăng nhập"}
+          </button>
         </form>
       </section>
     </main>
