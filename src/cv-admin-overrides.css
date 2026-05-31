@@ -1,0 +1,256 @@
+/* CV and admin behavior overrides loaded after the main theme file. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skill-chip-grid {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.skill-editor {
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 0.8fr) auto;
+}
+
+.certificate-editor {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+}
+
+.file-upload-row {
+  display: grid;
+  gap: 10px;
+}
+
+.cv-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.cv-actions .button {
+  width: 100%;
+}
+
+.file-field input[type="file"] {
+  cursor: pointer;
+}
+
+.file-field small {
+  color: var(--muted-2);
+  font-size: 0.82rem;
+}
+
+.multiline-text,
+.bio-text,
+.timeline p {
+  white-space: pre-line;
+}
+
+.footer-links a,
+.contact-socials a {
+  display: inline-grid;
+  width: 40px;
+  height: 40px;
+  min-height: 40px;
+  place-items: center;
+  padding: 0;
+}
+
+.footer-links svg,
+.contact-socials svg,
+.social-icons svg {
+  width: 18px;
+  height: 18px;
+}
+
+.certificate-list li {
+  display: grid;
+  gap: 3px;
+  color: #e2edf7;
+  text-shadow: none;
+}
+
+.certificate-list li a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.certificate-list li a:hover {
+  color: var(--cyan);
+}
+
+.certificate-list li span {
+  color: var(--muted-2);
+  font-size: 0.88rem;
+}
+
+[data-theme="light"] .certificate-list li {
+  color: #082638;
+  opacity: 1;
+  text-shadow: none;
+}
+
+[data-theme="light"] .certificate-list li span {
+  color: #315364;
+}
+
+[data-theme="light"] .certificate-list li::before {
+  background: linear-gradient(135deg, #007ea7, #00a6d6);
+  box-shadow: none;
+}
+
+@media (max-width: 1180px) {
+  .skill-chip-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .certificate-editor {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .certificate-editor .text-button {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .skill-chip-grid,
+  .skill-editor,
+  .certificate-editor {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    color: #111827 !important;
+    background: #ffffff !important;
+  }
+
+  body {
+    min-width: 0 !important;
+  }
+
+  .site-header,
+  .site-footer,
+  .no-print {
+    display: none !important;
+  }
+
+  .page-shell {
+    min-height: auto !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+  }
+
+  .container {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .cv-layout {
+    display: grid !important;
+    grid-template-columns: 64mm minmax(0, 1fr) !important;
+    gap: 8mm !important;
+    align-items: start !important;
+  }
+
+  .profile-sidebar,
+  .glass-panel {
+    color: #111827 !important;
+    background: #ffffff !important;
+    border: 1px solid #d7dee8 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+  }
+
+  .profile-sidebar {
+    position: static !important;
+    top: auto !important;
+    padding: 8mm !important;
+    break-inside: avoid !important;
+  }
+
+  .profile-sidebar img {
+    width: 34mm !important;
+    height: 34mm !important;
+  }
+
+  .profile-sidebar h1,
+  .profile-sidebar p,
+  .profile-sidebar h2,
+  .contact-list a,
+  .contact-list span,
+  .glass-panel h2,
+  .timeline h3,
+  .timeline h3 span,
+  .timeline time,
+  .timeline p,
+  .bio-text,
+  .skill-chip-group h3,
+  .certificate-list li,
+  .certificate-list li span {
+    color: #111827 !important;
+    background: none !important;
+    -webkit-text-fill-color: currentColor !important;
+    text-shadow: none !important;
+  }
+
+  .profile-sidebar h1,
+  .glass-panel h2 {
+    font-size: 18pt !important;
+  }
+
+  .profile-sidebar p,
+  .contact-list a,
+  .contact-list span,
+  .timeline p,
+  .bio-text,
+  .skill-pill,
+  .certificate-list li {
+    font-size: 10pt !important;
+    line-height: 1.45 !important;
+  }
+
+  .cv-content {
+    display: grid !important;
+    gap: 5mm !important;
+  }
+
+  .glass-panel {
+    padding: 6mm !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .skill-chip-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr)) !important;
+    gap: 4mm !important;
+  }
+
+  .skill-pill {
+    color: #111827 !important;
+    background: #eef3f8 !important;
+    border: 1px solid #d7dee8 !important;
+    box-shadow: none !important;
+  }
+
+  .social-icons a {
+    color: #111827 !important;
+    background: transparent !important;
+    border-color: #d7dee8 !important;
+  }
+}
