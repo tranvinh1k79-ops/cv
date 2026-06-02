@@ -7,3 +7,4 @@ server.err.log
 dev-server*.log
 dev-server*.err
 screenshots/
+.superpowers/

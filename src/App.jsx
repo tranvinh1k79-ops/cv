@@ -1234,6 +1234,207 @@ function HomePage() {
   );
 }
 
+function CvSectionIcon({ type }) {
+  const common = {
+    width: 18,
+    height: 18,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.8,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    "aria-hidden": "true"
+  };
+
+  if (type === "skills") {
+    return <svg {...common}><path d="m8 9-3 3 3 3" /><path d="m16 9 3 3-3 3" /><path d="m14 5-4 14" /></svg>;
+  }
+
+  if (type === "education") {
+    return <svg {...common}><path d="m3 10 9-5 9 5-9 5z" /><path d="M7 12.2V16c2.7 2 7.3 2 10 0v-3.8" /><path d="M21 10v6" /></svg>;
+  }
+
+  if (type === "certificates") {
+    return <svg {...common}><path d="M12 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12Z" /><path d="m9 14-1 7 4-2 4 2-1-7" /><path d="m9.5 9 1.6 1.6 3.4-3.4" /></svg>;
+  }
+
+  if (type === "email") {
+    return <svg {...common}><rect width="18" height="14" x="3" y="5" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
+  }
+
+  if (type === "phone") {
+    return <svg {...common}><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.12.9.33 1.78.62 2.63a2 2 0 0 1-.45 2.11L8 9.73a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.85.29 1.73.5 2.63.62A2 2 0 0 1 22 16.92Z" /></svg>;
+  }
+
+  if (type === "location") {
+    return <svg {...common}><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2" /></svg>;
+  }
+
+  return <svg {...common}><rect width="18" height="15" x="3" y="5" rx="2" /><path d="M8 5V3h8v2" /><path d="M3 10h18" /></svg>;
+}
+
+function CvSectionHeading({ icon, children }) {
+  return (
+    <div className="cv-section-heading">
+      <CvSectionIcon type={icon} />
+      <h2>{children}</h2>
+    </div>
+  );
+}
+
+function CvContactItem({ type, href, children }) {
+  if (!children) return null;
+
+  const content = (
+    <>
+      <CvSectionIcon type={type} />
+      <span>{children}</span>
+    </>
+  );
+
+  if (!href) return <span className="cv-meta-item">{content}</span>;
+  return <a className="cv-meta-item" href={href}>{content}</a>;
+}
+
+function CvProfileHero({ profile, onExportPdf }) {
+  return (
+    <section className="cv-profile-hero">
+      <div className="cv-avatar-frame">
+        <AvatarImage src={profile.avatar_url} alt={`Avatar ${profile.full_name}`} />
+      </div>
+
+      <div className="cv-profile-copy">
+        <div className="cv-profile-intro">
+          <div>
+            <h1 className="cv-profile-name">{profile.full_name || DEFAULT_SITE_TITLE}</h1>
+            {profile.title ? <p className="cv-profile-role">{profile.title}</p> : null}
+          </div>
+
+          <div className="cv-hero-actions no-print">
+            <CvDownloadButton href={profile.cv_url} fileName={profile.cv_file_name} />
+            <button className="button secondary cv-print-button" type="button" onClick={onExportPdf}>
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M7 3h10v5H7z" />
+                <path d="M6 17H5a3 3 0 0 1-3-3v-3a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v3a3 3 0 0 1-3 3h-1" />
+                <path d="M7 14h10v7H7z" />
+              </svg>
+              <span>Export PDF</span>
+            </button>
+          </div>
+        </div>
+
+        {profile.bio ? <p className="cv-profile-bio multiline-text">{profile.bio}</p> : null}
+
+        <div className="cv-profile-footer">
+          <div className="cv-profile-meta">
+            <CvContactItem type="email" href={profile.email ? `mailto:${profile.email}` : ""}>{profile.email}</CvContactItem>
+            <CvContactItem type="phone" href={profile.phone ? `tel:${profile.phone.replaceAll(" ", "")}` : ""}>{profile.phone}</CvContactItem>
+            <CvContactItem type="location">{profile.location}</CvContactItem>
+          </div>
+
+          <div className="cv-social-icons" aria-label="Social links">
+            <SocialIconLink href={profile.github_url} type="github" label="GitHub" />
+            <SocialIconLink href={profile.linkedin_url} type="linkedin" label="LinkedIn" />
+            <SocialIconLink href={profile.instagram_url} type="instagram" label="Instagram" />
+            <SocialIconLink href={profile.facebook_url} type="facebook" label="Facebook" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function CvSkillsSection({ status, skillEntries }) {
+  if (status === "loading") {
+    return <section className="cv-premium-panel"><CvSectionHeading icon="skills">Skills</CvSectionHeading><LoadingState /></section>;
+  }
+
+  if (!skillEntries.length) return null;
+
+  return (
+    <section className="cv-premium-panel cv-skills-panel">
+      <CvSectionHeading icon="skills">Skills</CvSectionHeading>
+      <div className="cv-skill-groups">
+        {skillEntries.map(([group, groupSkills]) => (
+          <div className="cv-skill-group" key={group}>
+            <h3>{group}</h3>
+            <div className="cv-skill-pills">
+              {groupSkills.map((skill) => <span key={`${group}-${skill.name}`}>{skill.name}</span>)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CvEducationSection({ education }) {
+  if (!education.length) return null;
+
+  return (
+    <section className="cv-premium-panel">
+      <CvSectionHeading icon="education">Education</CvSectionHeading>
+      <div className="cv-support-timeline">
+        {education.map((item) => (
+          <article key={item.id}>
+            <h3>{item.degree}</h3>
+            {item.school ? <strong>{item.school}</strong> : null}
+            {item.time ? <time>{item.time}</time> : null}
+            {item.description ? <p className="multiline-text">{item.description}</p> : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CvCertificatesSection({ certificates }) {
+  if (!certificates.length) return null;
+
+  return (
+    <section className="cv-premium-panel">
+      <CvSectionHeading icon="certificates">Certificates</CvSectionHeading>
+      <ul className="cv-certificate-list">
+        {certificates.map((item) => (
+          <li key={item.id}>
+            {item.credential_url ? <a href={item.credential_url} target="_blank" rel="noreferrer">{item.title}</a> : <strong>{item.title}</strong>}
+            {item.issuer || item.time ? <span>{[item.issuer, item.time].filter(Boolean).join(" - ")}</span> : null}
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function CvExperienceSection({ status, experiences }) {
+  if (status === "loading") {
+    return <section className="cv-premium-panel cv-experience-panel"><CvSectionHeading icon="experience">Experience</CvSectionHeading><LoadingState /></section>;
+  }
+
+  if (!experiences.length) return null;
+
+  return (
+    <section className="cv-premium-panel cv-experience-panel">
+      <CvSectionHeading icon="experience">Experience</CvSectionHeading>
+      <div className="cv-experience-timeline">
+        {experiences.map((item, index) => (
+          <article className="cv-experience-item" key={`${item.organization}-${index}`}>
+            <div className="cv-experience-heading">
+              <div>
+                <h3>{item.position}</h3>
+                {item.organization ? <strong>{item.organization}</strong> : null}
+              </div>
+              {item.time ? <time>{item.time}</time> : null}
+            </div>
+            {item.description ? <p className="multiline-text">{item.description}</p> : null}
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function CVPage() {
   usePageTitle("CV");
   const content = usePortfolioContent();
@@ -1257,8 +1458,6 @@ function CVPage() {
     () => (effectiveExperiences.data ?? []).map(normalizeExperience),
     [effectiveExperiences.data]
   );
-  const profileName = useMemo(() => splitProfileName(profile.full_name), [profile.full_name]);
-
   function handleExportPdf() {
     const previousTitle = document.title;
     const fileBaseName = profile.full_name ? `${profile.full_name} CV` : "CV";
@@ -1383,6 +1582,62 @@ function CVPage() {
                 ))}
               </ul>
             </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function PremiumCVPage() {
+  usePageTitle("CV");
+  const content = usePortfolioContent();
+  const profileState = useAsyncData(getProfile, []);
+  const skillsState = useAsyncData(getSkills, []);
+  const experiencesState = useAsyncData(getExperiences, []);
+  const profile = getEffectiveProfile(content, profileState.data);
+  const effectiveSkills = selectArrayState(skillsState, content.cvDraft?.skills, fallbackSkills);
+  const effectiveExperiences = selectArrayState(experiencesState, content.cvDraft?.experiences, fallbackExperiences);
+  const education = useMemo(
+    () => (content.cvDraft?.education ?? fallbackEducation).map(normalizeEducationItem),
+    [content.cvDraft?.education]
+  );
+  const certificates = useMemo(
+    () => (content.cvDraft?.certificates ?? fallbackCertificates).map(normalizeCertificateItem),
+    [content.cvDraft?.certificates]
+  );
+  const skillGroups = useMemo(() => groupSkills(effectiveSkills.data ?? []), [effectiveSkills.data]);
+  const skillEntries = useMemo(() => orderedSkillEntries(skillGroups), [skillGroups]);
+  const experiences = useMemo(
+    () => (effectiveExperiences.data ?? []).map(normalizeExperience),
+    [effectiveExperiences.data]
+  );
+  const profileName = useMemo(() => splitProfileName(profile.full_name), [profile.full_name]);
+
+  function handleExportPdf() {
+    const previousTitle = document.title;
+    const fileBaseName = profile.full_name ? `${profile.full_name} CV` : "CV";
+    document.title = fileBaseName;
+    window.print();
+    window.setTimeout(() => {
+      document.title = previousTitle;
+    }, 500);
+  }
+
+  return (
+    <main className="page-shell cv-premium-page">
+      <div className="container cv-premium-container">
+        <CvProfileHero profile={profile} onExportPdf={handleExportPdf} />
+
+        <div className="cv-premium-layout">
+          <aside className="cv-support-column">
+            <CvSkillsSection status={effectiveSkills.status} skillEntries={skillEntries} />
+            <CvEducationSection education={education} />
+            <CvCertificatesSection certificates={certificates} />
+          </aside>
+
+          <div className="cv-main-column">
+            <CvExperienceSection status={effectiveExperiences.status} experiences={experiences} />
           </div>
         </div>
       </div>
@@ -2390,7 +2645,7 @@ export default function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/cv" element={<CVPage />} />
+        <Route path="/cv" element={<PremiumCVPage />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/:slug" element={<ProjectDetailPage />} />
         <Route path="/news" element={<NewsPage />} />

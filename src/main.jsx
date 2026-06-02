@@ -7,6 +7,7 @@ import "./theme-cerulean.css";
 import "./cv-admin-overrides.css";
 import "./professional-blog-theme.css";
 import "./theme-sea-green.css";
+import "./cv-premium.css";
 
 ReactDOM.createRoot(document.getElementById("app")).render(
   <React.StrictMode>
