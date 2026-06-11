@@ -1,5 +1,7 @@
 import { hasValidAdminSession } from "./admin-login.js";
-import { uploadDataUrlToStorage } from "../server/supabase-storage.js";
+import { createSignedAssetUpload } from "../server/supabase-storage.js";
+
+const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 function readJsonBody(request) {
   if (request.body && typeof request.body === "object") return Promise.resolve(request.body);
@@ -40,13 +42,34 @@ export default async function handler(request, response) {
   }
 
   try {
-    const { dataUrl, fileName, folder } = await readJsonBody(request);
-    const uploaded = await uploadDataUrlToStorage({ dataUrl, fileName, folder });
-    response.status(201).json(uploaded);
+    const { fileName, folder, contentType, size = 0 } = await readJsonBody(request);
+    if (!fileName || !contentType) {
+      response.status(400).json({
+        code: "INVALID_UPLOAD_METADATA",
+        error: "Missing upload metadata"
+      });
+      return;
+    }
+    if (!contentType.startsWith("image/") && contentType !== "application/pdf") {
+      response.status(400).json({
+        code: "INVALID_FILE_TYPE",
+        error: "Only image and PDF files are allowed"
+      });
+      return;
+    }
+    if (Number(size) > MAX_FILE_BYTES) {
+      response.status(413).json({
+        code: "FILE_TOO_LARGE",
+        error: "File exceeds the 8 MB limit"
+      });
+      return;
+    }
+
+    const ticket = await createSignedAssetUpload({ fileName, folder, contentType });
+    response.status(201).json(ticket);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    const status = message.includes("8 MB") ? 413 : 400;
-    response.status(status).json({
+    response.status(400).json({
       error: "Unable to upload asset",
       detail: message
     });

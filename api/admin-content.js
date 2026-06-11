@@ -1,6 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
 import { hasValidAdminSession } from "./admin-login.js";
-import { migrateContentAssets } from "../server/supabase-storage.js";
 
 const CONTENT_ROW_ID = "main";
 const EMPTY_CONTENT = {
@@ -87,9 +86,16 @@ async function writeContent(request, response) {
     return;
   }
 
-  const supabase = getSupabaseClient();
   const now = new Date().toISOString();
-  const content = await migrateContentAssets(normalizeContent(await readJsonBody(request), now));
+  const content = normalizeContent(await readJsonBody(request), now);
+  if (/data:(?:image\/[^;,]+|application\/pdf);base64,/i.test(JSON.stringify(content))) {
+    response.status(422).json({
+      code: "EMBEDDED_ASSET_REJECTED",
+      error: "Upload assets to Storage before saving content"
+    });
+    return;
+  }
+  const supabase = getSupabaseClient();
   const { data, error } = await supabase
     .from("portfolio_content")
     .upsert(

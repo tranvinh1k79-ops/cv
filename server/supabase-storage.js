@@ -41,20 +41,18 @@ function safePathPart(value, fallback) {
   return normalized || fallback;
 }
 
-function parseDataUrl(dataUrl) {
-  const match = String(dataUrl || "").match(/^data:([^;,]+);base64,(.+)$/s);
-  if (!match) throw new Error("Invalid base64 file data");
+function extensionForContentType(contentType, fileName) {
+  return MIME_EXTENSIONS[contentType] || safePathPart(fileName?.split(".").pop(), "bin");
+}
 
-  const contentType = match[1].toLowerCase();
-  if (!contentType.startsWith("image/") && contentType !== "application/pdf") {
-    throw new Error("Only image and PDF files are allowed");
-  }
-
-  const buffer = Buffer.from(match[2], "base64");
-  if (!buffer.length) throw new Error("Empty file");
-  if (buffer.length > MAX_FILE_BYTES) throw new Error("File exceeds the 8 MB upload limit");
-
-  return { buffer, contentType };
+function createAssetPath({ fileName, folder = "uploads", contentType = "application/octet-stream" }) {
+  const extension = extensionForContentType(contentType, fileName);
+  const originalName = safePathPart(String(fileName || "asset").replace(/\.[^.]+$/, ""), "asset");
+  const safeFolder = String(folder || "uploads")
+    .split("/")
+    .map((part) => safePathPart(part, "uploads"))
+    .join("/");
+  return `${safeFolder}/${Date.now()}-${randomUUID()}-${originalName}.${extension}`;
 }
 
 async function ensureAssetBucket(supabase) {
@@ -83,97 +81,21 @@ async function ensureAssetBucket(supabase) {
   }
 }
 
-export function isDataFileUrl(value) {
-  return /^data:(image\/[^;,]+|application\/pdf);base64,/i.test(String(value || ""));
-}
-
-export async function uploadDataUrlToStorage({ dataUrl, fileName, folder = "uploads" }) {
+export async function createSignedAssetUpload({ fileName, folder, contentType }) {
   const supabase = getSupabaseClient();
   await ensureAssetBucket(supabase);
-
-  const { buffer, contentType } = parseDataUrl(dataUrl);
-  const extension = MIME_EXTENSIONS[contentType] || safePathPart(fileName?.split(".").pop(), "bin");
-  const originalName = safePathPart(String(fileName || "asset").replace(/\.[^.]+$/, ""), "asset");
-  const safeFolder = String(folder || "uploads")
-    .split("/")
-    .map((part) => safePathPart(part, "uploads"))
-    .join("/");
-  const path = `${safeFolder}/${Date.now()}-${randomUUID()}-${originalName}.${extension}`;
-
-  const { error } = await supabase.storage
+  const path = createAssetPath({ fileName, folder, contentType });
+  const { data, error } = await supabase.storage
     .from(ASSET_BUCKET)
-    .upload(path, buffer, {
-      cacheControl: "31536000",
-      contentType,
-      upsert: false
-    });
+    .createSignedUploadUrl(path, { upsert: false });
 
   if (error) throw error;
 
-  const { data } = supabase.storage.from(ASSET_BUCKET).getPublicUrl(path);
+  const publicUrl = supabase.storage.from(ASSET_BUCKET).getPublicUrl(path).data.publicUrl;
   return {
     bucket: ASSET_BUCKET,
     path,
-    url: data.publicUrl
+    token: data.token,
+    publicUrl
   };
-}
-
-async function migrateAsset(value, fileName, folder) {
-  if (!isDataFileUrl(value)) return value;
-  const uploaded = await uploadDataUrlToStorage({ dataUrl: value, fileName, folder });
-  return uploaded.url;
-}
-
-export async function migrateContentAssets(content = {}) {
-  const nextContent = { ...content };
-
-  if (nextContent.profile) {
-    nextContent.profile = {
-      ...nextContent.profile,
-      avatar_url: await migrateAsset(
-        nextContent.profile.avatar_url,
-        nextContent.profile.avatar_file_name || "avatar",
-        "profile/avatar"
-      ),
-      cv_url: await migrateAsset(
-        nextContent.profile.cv_url,
-        nextContent.profile.cv_file_name || "cv.pdf",
-        "profile/cv"
-      )
-    };
-  }
-
-  if (Array.isArray(nextContent.projects)) {
-    nextContent.projects = await Promise.all(nextContent.projects.map(async (project) => {
-      const folder = `projects/${safePathPart(project.slug || project.id, "project")}`;
-      return {
-        ...project,
-        thumbnail_url: await migrateAsset(project.thumbnail_url, "thumbnail", `${folder}/thumbnail`),
-        cover_url: await migrateAsset(project.cover_url, "cover", `${folder}/cover`),
-        app_demo_image_url: await migrateAsset(
-          project.app_demo_image_url,
-          project.app_demo_file_name || "app-demo",
-          `${folder}/app-demo`
-        ),
-        web_demo_image_url: await migrateAsset(
-          project.web_demo_image_url,
-          project.web_demo_file_name || "web-demo",
-          `${folder}/web-demo`
-        )
-      };
-    }));
-  }
-
-  if (Array.isArray(nextContent.news)) {
-    nextContent.news = await Promise.all(nextContent.news.map(async (post) => {
-      const folder = `news/${safePathPart(post.slug || post.id, "post")}`;
-      return {
-        ...post,
-        thumbnail_url: await migrateAsset(post.thumbnail_url, "thumbnail", `${folder}/thumbnail`),
-        cover_url: await migrateAsset(post.cover_url, "cover", `${folder}/cover`)
-      };
-    }));
-  }
-
-  return nextContent;
 }

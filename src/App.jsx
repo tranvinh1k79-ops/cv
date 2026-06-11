@@ -16,6 +16,19 @@ import {
 } from "./services/projectService";
 import { getLatestNews, getNews, getNewsBySlug } from "./services/newsService";
 import {
+  AdminApiError,
+  loginAdmin,
+  logoutAdmin,
+  readAdminContent,
+  validateAdminSession,
+  writeAdminContent
+} from "./services/adminApi";
+import {
+  dataUrlToBlob,
+  prepareContentForSync,
+  uploadAssetDirect
+} from "./services/adminAssetService";
+import {
   fallbackCertificates,
   fallbackEducation,
   fallbackProfile,
@@ -23,18 +36,16 @@ import {
 } from "./data/fallbackData";
 import cvReferenceAvatar from "./assets/cv-reference-avatar.jpg";
 
-const ADMIN_PASSWORD = "1";
 const DEFAULT_SITE_TITLE = "Portfolio";
 const DEFAULT_SKILL_GROUPS = ["Frontend", "Backend", "Database", "Tools", "AI"];
-const CONTENT_API_ENDPOINT = "/api/admin-content";
 const CONTENT_FIELDS = ["profile", "cv", "projects", "news", "contact"];
 const STORAGE_KEYS = {
-  session: "tv_portfolio_admin_session",
   profile: "tv_portfolio_profile_draft",
   cv: "tv_portfolio_cv_draft",
   projects: "tv_portfolio_projects_draft",
   news: "tv_portfolio_news_draft",
   contact: "tv_portfolio_contact_draft",
+  pendingSync: "tv_portfolio_pending_sync",
   theme: "tv_portfolio_sea_green_theme"
 };
 
@@ -298,10 +309,10 @@ function hasEmbeddedFile(value) {
   return /data:(?:image\/[^;,]+|application\/pdf);base64,/i.test(JSON.stringify(value ?? null));
 }
 
-function mergeSavedContentWithBrowserDraft(savedContent = {}, browserDraft = {}) {
+function mergeSavedContentWithBrowserDraft(savedContent = {}, browserDraft = {}, preferBrowserDraft = false) {
   return CONTENT_FIELDS.reduce((merged, key) => ({
     ...merged,
-    [key]: hasEmbeddedFile(browserDraft[key])
+    [key]: (preferBrowserDraft && browserDraft[key] !== null && browserDraft[key] !== undefined) || hasEmbeddedFile(browserDraft[key])
       ? browserDraft[key]
       : savedContent[key] ?? browserDraft[key] ?? null
   }), {});
@@ -320,46 +331,21 @@ function needsBrowserDraftBackfill(savedContent = {}, browserDraft = {}) {
 }
 
 async function readFileBackedContent() {
-  const response = await fetch(CONTENT_API_ENDPOINT, { cache: "no-store" });
-  if (!response.ok) throw new Error(`Cannot load saved content (${response.status})`);
-  return response.json();
+  return readAdminContent();
 }
 
 async function writeFileBackedContent(content) {
-  const response = await fetch(CONTENT_API_ENDPOINT, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(content)
-  });
-
-  if (!response.ok) throw new Error(`Cannot save content (${response.status})`);
-  return response.json();
-}
-
-async function uploadAdminAsset(dataUrl, fileName, folder) {
-  const response = await fetch("/api/admin-upload", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify({ dataUrl, fileName, folder })
-  });
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    throw new Error(body.detail || body.error || `Cannot upload asset (${response.status})`);
-  }
-
-  return response.json();
+  return writeAdminContent(content);
 }
 
 function PortfolioProvider({ children }) {
-  const [session, setSession] = usePersistentState(STORAGE_KEYS.session, false);
+  const [sessionState, setSessionState] = useState({ status: "checking", authenticated: false });
   const [profileDraft, setProfileDraft] = usePersistentState(STORAGE_KEYS.profile, null);
   const [cvDraft, setCvDraft] = usePersistentState(STORAGE_KEYS.cv, null);
   const [projectsDraft, setProjectsDraft] = usePersistentState(STORAGE_KEYS.projects, null);
   const [newsDraft, setNewsDraft] = usePersistentState(STORAGE_KEYS.news, null);
   const [contactDraft, setContactDraft] = usePersistentState(STORAGE_KEYS.contact, null);
+  const [pendingSync, setPendingSync] = usePersistentState(STORAGE_KEYS.pendingSync, false);
   const [theme, setTheme] = usePersistentState(STORAGE_KEYS.theme, "dark");
   const [syncState, setSyncState] = useState({ status: "idle", message: "Chưa đồng bộ" });
 
@@ -375,7 +361,37 @@ function PortfolioProvider({ children }) {
     document.documentElement.dataset.theme = theme === "light" ? "light" : "dark";
   }, [theme]);
 
+  const applyDraftSnapshot = useCallback((content = {}) => {
+    setProfileDraft(content.profile ?? null);
+    setCvDraft(content.cv ?? null);
+    setProjectsDraft(content.projects ?? null);
+    setNewsDraft(content.news ?? null);
+    setContactDraft(content.contact ?? null);
+  }, [setProfileDraft, setCvDraft, setProjectsDraft, setNewsDraft, setContactDraft]);
+
+  const expireAdminSession = useCallback(() => {
+    setSessionState({ status: "ready", authenticated: false });
+  }, []);
+
   useEffect(() => {
+    let cancelled = false;
+    window.localStorage.removeItem("tv_portfolio_admin_session");
+    validateAdminSession()
+      .then(() => {
+        if (!cancelled) setSessionState({ status: "ready", authenticated: true });
+      })
+      .catch(() => {
+        if (!cancelled) setSessionState({ status: "ready", authenticated: false });
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (sessionState.status !== "ready") return undefined;
+
     let cancelled = false;
     const browserDraft = contentSnapshot;
 
@@ -385,46 +401,38 @@ function PortfolioProvider({ children }) {
         const savedContent = await readFileBackedContent();
         if (cancelled) return;
 
-        const mergedContent = mergeSavedContentWithBrowserDraft(savedContent, browserDraft);
+        const mergedContent = mergeSavedContentWithBrowserDraft(savedContent, browserDraft, pendingSync);
 
         if (hasDraftContent(mergedContent)) {
-          setProfileDraft(mergedContent.profile ?? null);
-          setCvDraft(mergedContent.cv ?? null);
-          setProjectsDraft(mergedContent.projects ?? null);
-          setNewsDraft(mergedContent.news ?? null);
-          setContactDraft(mergedContent.contact ?? null);
+          applyDraftSnapshot(mergedContent);
 
-          if (needsBrowserDraftBackfill(savedContent, browserDraft)) {
-            const storedContent = await writeFileBackedContent(mergedContent);
+          if (sessionState.authenticated && (pendingSync || needsBrowserDraftBackfill(savedContent, browserDraft))) {
+            const preparedContent = await prepareContentForSync(mergedContent);
+            applyDraftSnapshot(preparedContent);
+            const storedContent = await writeFileBackedContent(preparedContent);
             if (!cancelled) {
-              setProfileDraft(storedContent.profile ?? null);
-              setCvDraft(storedContent.cv ?? null);
-              setProjectsDraft(storedContent.projects ?? null);
-              setNewsDraft(storedContent.news ?? null);
-              setContactDraft(storedContent.contact ?? null);
+              applyDraftSnapshot(storedContent);
+              setPendingSync(false);
               setSyncState({ status: "saved", message: "Đã bổ sung dữ liệu trình duyệt vào kho lưu" });
             }
             return;
           }
 
-          setSyncState({ status: "loaded", message: "Đã tải dữ liệu từ kho lưu" });
-          return;
-        }
-
-        if (hasDraftContent(browserDraft)) {
-          await writeFileBackedContent(browserDraft);
-          if (!cancelled) {
-            setSyncState({ status: "saved", message: "Đã chuyển dữ liệu trình duyệt sang kho lưu" });
-          }
+          setSyncState(pendingSync
+            ? { status: "error", message: "Có bản chỉnh sửa chưa lưu. Đăng nhập Admin để đồng bộ." }
+            : { status: "loaded", message: "Đã tải dữ liệu từ kho lưu" });
           return;
         }
 
         setSyncState({ status: "ready", message: "Sẵn sàng lưu dữ liệu" });
       } catch (error) {
         if (!cancelled) {
+          if (error instanceof AdminApiError && error.status === 401) expireAdminSession();
           setSyncState({
             status: "error",
-            message: "Chưa đồng bộ được, đang dùng localStorage"
+            message: error instanceof AdminApiError && error.status === 401
+              ? "Phiên admin đã hết hạn. Đăng nhập lại để lưu dữ liệu."
+              : `Chưa đồng bộ được: ${error.message}`
           });
           console.warn("File-backed content sync unavailable", error);
         }
@@ -436,34 +444,50 @@ function PortfolioProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionState.status, sessionState.authenticated]);
 
-  const persistDrafts = useCallback((overrides = {}) => {
+  const persistDrafts = useCallback(async (overrides = {}) => {
     const nextContent = { ...contentSnapshot, ...overrides };
+    applyDraftSnapshot(nextContent);
+    setPendingSync(true);
     setSyncState({ status: "saving", message: "Đang lưu dữ liệu..." });
 
-    return writeFileBackedContent(nextContent)
-      .then((storedContent) => {
-        setProfileDraft(storedContent.profile ?? null);
-        setCvDraft(storedContent.cv ?? null);
-        setProjectsDraft(storedContent.projects ?? null);
-        setNewsDraft(storedContent.news ?? null);
-        setContactDraft(storedContent.contact ?? null);
-        setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào kho lưu" });
-        return true;
-      })
-      .catch((error) => {
-        setSyncState({
-          status: "error",
-          message: "Lưu kho dữ liệu lỗi, dữ liệu vẫn còn trong localStorage"
-        });
-        console.warn("Unable to save file-backed content", error);
-        return false;
+    if (!sessionState.authenticated) {
+      const message = "Phiên admin đã hết hạn. Đăng nhập lại để lưu dữ liệu.";
+      setSyncState({
+        status: "error",
+        message
       });
-  }, [contentSnapshot, setProfileDraft, setCvDraft, setProjectsDraft, setNewsDraft, setContactDraft]);
+      return { ok: false, message };
+    }
+
+    try {
+      const preparedContent = await prepareContentForSync(nextContent);
+      applyDraftSnapshot(preparedContent);
+      const storedContent = await writeFileBackedContent(preparedContent);
+      applyDraftSnapshot(storedContent);
+      setPendingSync(false);
+      setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào kho lưu" });
+      return { ok: true, message: "Đã lưu dữ liệu vào kho lưu" };
+    } catch (error) {
+      let message;
+      if (error instanceof AdminApiError && error.status === 401) {
+        expireAdminSession();
+        message = "Phiên admin đã hết hạn. Đăng nhập lại để lưu dữ liệu.";
+      } else if (error instanceof AdminApiError && error.status === 413) {
+        message = "Dữ liệu gửi lên quá lớn. File phải được tải lên Storage trước.";
+      } else {
+        message = `Không thể lưu dữ liệu: ${error.message}`;
+      }
+      setSyncState({ status: "error", message });
+      console.warn("Unable to save file-backed content", error);
+      return { ok: false, message };
+    }
+  }, [contentSnapshot, sessionState.authenticated, applyDraftSnapshot, expireAdminSession, setPendingSync]);
 
   const value = useMemo(() => ({
-    isAdmin: Boolean(session),
+    isAdmin: sessionState.authenticated,
+    sessionStatus: sessionState.status,
     theme,
     syncState,
     profileDraft,
@@ -473,34 +497,20 @@ function PortfolioProvider({ children }) {
     contactDraft,
     async login(password) {
       try {
-        const response = await fetch("/api/admin-login", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "same-origin",
-          body: JSON.stringify({ password })
-        });
-
-        if (response.ok) {
-          setSession(true);
-          return true;
-        }
-
-        if (response.status === 401 || response.status === 403) return false;
+        await loginAdmin(password);
+        setSessionState({ status: "ready", authenticated: true });
+        return true;
       } catch (error) {
-        console.warn("Admin login API unavailable, using local fallback", error);
+        if (error instanceof AdminApiError && (error.status === 401 || error.status === 403)) return false;
+        console.warn("Admin login API unavailable", error);
+        return false;
       }
-
-      const accepted = password === ADMIN_PASSWORD;
-      if (accepted) setSession(true);
-      return accepted;
     },
     logout() {
-      fetch("/api/admin-logout", {
-        method: "POST",
-        credentials: "same-origin"
-      }).catch(() => {});
-      setSession(false);
+      logoutAdmin().catch(() => {});
+      expireAdminSession();
     },
+    expireAdminSession,
     toggleTheme() {
       setTheme((current) => current === "light" ? "dark" : "light");
     },
@@ -514,11 +524,11 @@ function PortfolioProvider({ children }) {
     },
     saveCv(nextCv) {
       setCvDraft(nextCv);
-      persistDrafts({ cv: nextCv });
+      return persistDrafts({ cv: nextCv });
     },
     resetCv() {
       setCvDraft(null);
-      persistDrafts({ cv: null });
+      return persistDrafts({ cv: null });
     },
     saveProjects(nextProjects) {
       setProjectsDraft(nextProjects);
@@ -526,25 +536,25 @@ function PortfolioProvider({ children }) {
     },
     resetProjects() {
       setProjectsDraft(null);
-      persistDrafts({ projects: null });
+      return persistDrafts({ projects: null });
     },
     saveNews(nextNews) {
       setNewsDraft(nextNews);
-      persistDrafts({ news: nextNews });
+      return persistDrafts({ news: nextNews });
     },
     resetNews() {
       setNewsDraft(null);
-      persistDrafts({ news: null });
+      return persistDrafts({ news: null });
     },
     saveContact(nextContact) {
       setContactDraft(nextContact);
-      persistDrafts({ contact: nextContact });
+      return persistDrafts({ contact: nextContact });
     },
     resetContact() {
       setContactDraft(null);
-      persistDrafts({ contact: null });
+      return persistDrafts({ contact: null });
     }
-  }), [session, theme, syncState, profileDraft, cvDraft, projectsDraft, newsDraft, contactDraft, setSession, setTheme, setProfileDraft, setCvDraft, setProjectsDraft, setNewsDraft, setContactDraft, persistDrafts]);
+  }), [sessionState, theme, syncState, profileDraft, cvDraft, projectsDraft, newsDraft, contactDraft, setTheme, setProfileDraft, setCvDraft, setProjectsDraft, setNewsDraft, setContactDraft, persistDrafts, expireAdminSession]);
 
   return <PortfolioContext.Provider value={value}>{children}</PortfolioContext.Provider>;
 }
@@ -2353,6 +2363,7 @@ function FileUploadField({
   imageOptions = null,
   storageFolder = ""
 }) {
+  const { expireAdminSession } = usePortfolioContent();
   const [error, setError] = useState("");
   const [isUploading, setIsUploading] = useState(false);
 
@@ -2362,15 +2373,23 @@ function FileUploadField({
 
     setIsUploading(true);
     try {
-      const dataUrl = imageOptions
-        ? await optimizeImageFile(file, imageOptions)
-        : await readFileAsDataUrl(file);
-      const value = storageFolder
-        ? (await uploadAdminAsset(dataUrl, file.name, storageFolder)).url
-        : dataUrl;
+      let value;
+      if (storageFolder) {
+        const blob = imageOptions
+          ? await dataUrlToBlob(await optimizeImageFile(file, imageOptions))
+          : file;
+        value = await uploadAssetDirect({ blob, fileName: file.name, folder: storageFolder });
+      } else {
+        value = imageOptions
+          ? await optimizeImageFile(file, imageOptions)
+          : await readFileAsDataUrl(file);
+      }
       await onFileReady(value, file.name);
       setError("");
     } catch (uploadError) {
+      if (uploadError instanceof AdminApiError && uploadError.status === 401) {
+        expireAdminSession();
+      }
       setError(uploadError instanceof Error ? uploadError.message : "Cannot upload this file.");
     } finally {
       setIsUploading(false);
@@ -2450,10 +2469,10 @@ function ProfileEditor() {
 
   async function save() {
     setIsSaving(true);
-    const saved = await content.saveProfile(form);
-    setNotice(saved
+    const result = await content.saveProfile(form);
+    setNotice(result.ok
       ? "Đã lưu lời chào và hồ sơ CV."
-      : "Chưa lưu được lên kho dữ liệu. Bản chỉnh sửa vẫn còn trong localStorage.");
+      : result.message);
     setIsSaving(false);
   }
 
@@ -2461,11 +2480,11 @@ function ProfileEditor() {
     const nextForm = { ...form, ...patch };
     setForm(nextForm);
     setNotice("Đang lưu URL file vào kho dữ liệu...");
-    const saved = await content.saveProfile(nextForm);
-    setNotice(saved
+    const result = await content.saveProfile(nextForm);
+    setNotice(result.ok
       ? "Đã tải file lên Supabase Storage và lưu URL."
-      : "File đã tải lên Storage nhưng chưa lưu được URL vào kho dữ liệu.");
-    if (!saved) throw new Error("Không thể lưu URL file vào kho dữ liệu.");
+      : result.message);
+    if (!result.ok) throw new Error(result.message);
   }
 
   function reset() {
@@ -2563,6 +2582,7 @@ function CvEditor() {
   const [education, setEducation] = useState(() => sourceEducation.map(normalizeEducationItem));
   const [certificates, setCertificates] = useState(() => sourceCertificates.map(normalizeCertificateItem));
   const [notice, setNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setSkills(sourceSkills.map((item, index) => ({
@@ -2609,8 +2629,9 @@ function CvEditor() {
     setCertificates((items) => items.map((item) => item.id === id ? { ...item, ...patch } : item));
   }
 
-  function save() {
-    content.saveCv({
+  async function save() {
+    setIsSaving(true);
+    const result = await content.saveCv({
       skills: skills.map((item) => ({
         id: item.id,
         name: item.name,
@@ -2639,7 +2660,8 @@ function CvEditor() {
         credential_url: item.credential_url
       }))
     });
-    setNotice("Đã lưu nội dung CV.");
+    setNotice(result.ok ? "Đã lưu nội dung CV." : result.message);
+    setIsSaving(false);
   }
 
   function reset() {
@@ -2656,7 +2678,9 @@ function CvEditor() {
         </div>
         <div className="admin-actions">
           <button className="button secondary" type="button" onClick={reset}>Reset</button>
-          <button className="button" type="button" onClick={save}>Lưu CV</button>
+          <button className="button" type="button" onClick={save} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "Lưu CV"}
+          </button>
         </div>
       </div>
       {notice ? <p className="admin-notice">{notice}</p> : null}
@@ -2787,11 +2811,11 @@ function ProjectsEditor() {
     const nextProjects = projects.map((item) => item.id === activeProject.id ? { ...item, ...patch } : item);
     setProjects(nextProjects);
     setNotice("Đang lưu URL ảnh vào kho dữ liệu...");
-    const saved = await content.saveProjects(nextProjects.map(fromEditableProject));
-    setNotice(saved
+    const result = await content.saveProjects(nextProjects.map(fromEditableProject));
+    setNotice(result.ok
       ? "Đã tải ảnh lên Supabase Storage và tự động lưu project."
-      : "Ảnh đã tải lên Storage nhưng chưa lưu được URL vào kho dữ liệu.");
-    if (!saved) throw new Error("Không thể lưu URL ảnh vào kho dữ liệu.");
+      : result.message);
+    if (!result.ok) throw new Error(result.message);
   }
 
   function addProject() {
@@ -2824,10 +2848,10 @@ function ProjectsEditor() {
     try {
       const optimizedProjects = await Promise.all(projects.map(optimizeProjectImages));
       setProjects(optimizedProjects);
-      const saved = await content.saveProjects(optimizedProjects.map(fromEditableProject));
-      setNotice(saved
+      const result = await content.saveProjects(optimizedProjects.map(fromEditableProject));
+      setNotice(result.ok
         ? "Đã tối ưu ảnh và lưu danh sách projects."
-        : "Chưa lưu được lên kho dữ liệu. Bản chỉnh sửa vẫn còn trong localStorage.");
+        : result.message);
     } catch (error) {
       console.warn("Unable to optimize project images", error);
       setNotice("Không thể tối ưu ảnh. Vui lòng chọn ảnh khác rồi thử lại.");
@@ -2954,6 +2978,7 @@ function NewsEditor() {
   const [posts, setPosts] = useState(() => sourceNews.map(toEditableNews));
   const [activeId, setActiveId] = useState(() => sourceNews[0]?.id ?? sourceNews[0]?.slug ?? "");
   const [notice, setNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const nextPosts = sourceNews.map(toEditableNews);
@@ -2989,9 +3014,11 @@ function NewsEditor() {
     setActiveId(id);
   }
 
-  function save() {
-    content.saveNews(posts.map(fromEditableNews));
-    setNotice("Đã lưu danh sách news.");
+  async function save() {
+    setIsSaving(true);
+    const result = await content.saveNews(posts.map(fromEditableNews));
+    setNotice(result.ok ? "Đã lưu danh sách news." : result.message);
+    setIsSaving(false);
   }
 
   function reset() {
@@ -3009,7 +3036,9 @@ function NewsEditor() {
         <div className="admin-actions">
           <button className="button ghost" type="button" onClick={addPost}>Thêm bài viết</button>
           <button className="button secondary" type="button" onClick={reset}>Reset</button>
-          <button className="button" type="button" onClick={save}>Lưu News</button>
+          <button className="button" type="button" onClick={save} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "Lưu News"}
+          </button>
         </div>
       </div>
       {notice ? <p className="admin-notice">{notice}</p> : null}
@@ -3074,6 +3103,7 @@ function ContactEditor() {
   const sourceContact = toEditableContact(getEffectiveProfile(content, profileState.data));
   const [form, setForm] = useState(sourceContact);
   const [notice, setNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setForm(sourceContact);
@@ -3083,9 +3113,11 @@ function ContactEditor() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function save() {
-    content.saveContact(form);
-    setNotice("Đã lưu nội dung contact.");
+  async function save() {
+    setIsSaving(true);
+    const result = await content.saveContact(form);
+    setNotice(result.ok ? "Đã lưu nội dung contact." : result.message);
+    setIsSaving(false);
   }
 
   function reset() {
@@ -3102,7 +3134,9 @@ function ContactEditor() {
         </div>
         <div className="admin-actions">
           <button className="button secondary" type="button" onClick={reset}>Reset</button>
-          <button className="button" type="button" onClick={save}>Lưu Contact</button>
+          <button className="button" type="button" onClick={save} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "Lưu Contact"}
+          </button>
         </div>
       </div>
       {notice ? <p className="admin-notice">{notice}</p> : null}
@@ -3122,9 +3156,12 @@ function ContactEditor() {
 
 function AdminPage() {
   usePageTitle("Admin Studio");
-  const { isAdmin, logout, syncState } = usePortfolioContent();
+  const { isAdmin, sessionStatus, logout, syncState } = usePortfolioContent();
   const [tab, setTab] = useState("profile");
 
+  if (sessionStatus === "checking") {
+    return <main className="admin-shell"><LoadingState label="Đang kiểm tra phiên admin..." /></main>;
+  }
   if (!isAdmin) return <AdminLogin />;
 
   const tabs = [
