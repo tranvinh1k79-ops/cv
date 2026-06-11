@@ -293,18 +293,29 @@ function hasDraftContent(content) {
     CONTENT_FIELDS.some((key) => content[key] !== null && content[key] !== undefined)
   );
 }
+
+function hasEmbeddedFile(value) {
+  return /data:(?:image\/[^;,]+|application\/pdf);base64,/i.test(JSON.stringify(value ?? null));
+}
+
 function mergeSavedContentWithBrowserDraft(savedContent = {}, browserDraft = {}) {
   return CONTENT_FIELDS.reduce((merged, key) => ({
     ...merged,
-    [key]: savedContent[key] ?? browserDraft[key] ?? null
+    [key]: hasEmbeddedFile(browserDraft[key])
+      ? browserDraft[key]
+      : savedContent[key] ?? browserDraft[key] ?? null
   }), {});
 }
 
 function needsBrowserDraftBackfill(savedContent = {}, browserDraft = {}) {
   return CONTENT_FIELDS.some((key) => (
-    (savedContent[key] === null || savedContent[key] === undefined) &&
     browserDraft[key] !== null &&
-    browserDraft[key] !== undefined
+    browserDraft[key] !== undefined &&
+    (
+      savedContent[key] === null ||
+      savedContent[key] === undefined ||
+      (hasEmbeddedFile(browserDraft[key]) && !hasEmbeddedFile(savedContent[key]))
+    )
   ));
 }
 
@@ -384,8 +395,13 @@ function PortfolioProvider({ children }) {
           setContactDraft(mergedContent.contact ?? null);
 
           if (needsBrowserDraftBackfill(savedContent, browserDraft)) {
-            await writeFileBackedContent(mergedContent);
+            const storedContent = await writeFileBackedContent(mergedContent);
             if (!cancelled) {
+              setProfileDraft(storedContent.profile ?? null);
+              setCvDraft(storedContent.cv ?? null);
+              setProjectsDraft(storedContent.projects ?? null);
+              setNewsDraft(storedContent.news ?? null);
+              setContactDraft(storedContent.contact ?? null);
               setSyncState({ status: "saved", message: "Đã bổ sung dữ liệu trình duyệt vào kho lưu" });
             }
             return;
@@ -427,7 +443,12 @@ function PortfolioProvider({ children }) {
     setSyncState({ status: "saving", message: "Đang lưu dữ liệu..." });
 
     return writeFileBackedContent(nextContent)
-      .then(() => {
+      .then((storedContent) => {
+        setProfileDraft(storedContent.profile ?? null);
+        setCvDraft(storedContent.cv ?? null);
+        setProjectsDraft(storedContent.projects ?? null);
+        setNewsDraft(storedContent.news ?? null);
+        setContactDraft(storedContent.contact ?? null);
         setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào kho lưu" });
         return true;
       })
@@ -439,7 +460,7 @@ function PortfolioProvider({ children }) {
         console.warn("Unable to save file-backed content", error);
         return false;
       });
-  }, [contentSnapshot]);
+  }, [contentSnapshot, setProfileDraft, setCvDraft, setProjectsDraft, setNewsDraft, setContactDraft]);
 
   const value = useMemo(() => ({
     isAdmin: Boolean(session),
