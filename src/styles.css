@@ -1717,6 +1717,48 @@ img {
   padding: 36px 0 78px;
 }
 
+.project-demo-section {
+  margin: 0 0 34px;
+}
+
+.section-title.compact {
+  margin-bottom: 18px;
+}
+
+.section-title.compact h2 {
+  margin: 4px 0 0;
+  font-size: 1.45rem;
+}
+
+.project-demo-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.project-demo-card {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: linear-gradient(145deg, rgba(24, 38, 51, 0.74), rgba(12, 23, 33, 0.88));
+  box-shadow: var(--shadow);
+}
+
+.project-demo-card h3 {
+  margin: 0 0 12px;
+  color: #dcecff;
+  font-family: var(--font-display);
+  font-size: 1rem;
+}
+
+.project-demo-card .data-image {
+  aspect-ratio: 16 / 10;
+  border-radius: 6px;
+  object-fit: contain;
+  background: #071018;
+}
+
 .button-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2824,6 +2866,22 @@ button.button,
   min-width: 0;
 }
 
+.project-demo-admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 4px 0 14px;
+}
+
+.admin-image-preview {
+  width: 100%;
+  max-height: 220px;
+  border: 1px solid rgba(242, 213, 147, 0.18);
+  border-radius: 8px;
+  background: rgba(10, 10, 8, 0.38);
+  object-fit: contain;
+}
+
 @media (max-width: 1023px) {
   .admin-grid,
   .project-editor-layout {
@@ -2860,6 +2918,8 @@ button.button,
   }
 
   .form-grid.two,
+  .project-demo-grid,
+  .project-demo-admin-grid,
   .mini-editor,
   .mini-editor.wide,
   .admin-tabs {

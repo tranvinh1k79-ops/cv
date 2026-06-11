@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+﻿import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
   Link,
@@ -21,6 +21,7 @@ import {
   fallbackProfile,
   visualKinds
 } from "./data/fallbackData";
+import cvReferenceAvatar from "./assets/cv-reference-avatar.jpg";
 
 const ADMIN_PASSWORD = "1";
 const DEFAULT_SITE_TITLE = "Portfolio";
@@ -165,6 +166,96 @@ const fallbackNews = [
   }
 ];
 
+const sampleCvPrintData = {
+  profile: {
+    ...fallbackProfile,
+    full_name: "Trần Nguyễn Trung Nguyên",
+    title: "Fullstack Developer Junior",
+    bio: "Định hướng phát triển web và ứng dụng di động. Có 6 tháng thực hành tại edukidstaynguyen.com, đã làm quen quy trình xây dựng sản phẩm web/mobile, viết API, xử lý database và cải thiện giao diện người dùng.",
+    avatar_url: cvReferenceAvatar,
+    email: "tntnguyen.dev@gmail.com",
+    phone: "0836-640-003",
+    location: "Việt Nam",
+    birth_date: "14-02-2003",
+    website_url: "https://ngyen2k3-cv.vercel.app/"
+  },
+  skillEntries: [
+    ["Kỹ năng chính", [
+      { name: "React" },
+      { name: "Flutter" },
+      { name: "HTML/CSS" },
+      { name: "Node.js" },
+      { name: "Express.js" },
+      { name: "REST API" },
+      { name: "JWT" },
+      { name: "MVC" },
+      { name: "MongoDB" },
+      { name: "Firebase" },
+      { name: "Supabase" },
+      { name: "Git" },
+      { name: "Postman" },
+      { name: "OpenWeatherMap API" },
+      { name: "Firebase Cloud Messaging" },
+      { name: "AI Tools" }
+    ]]
+  ],
+  education: [
+    {
+      id: "sample-education-duy-tan",
+      school: "Đại học Duy Tân",
+      degree: "Cử nhân Kỹ thuật phần mềm",
+      time: "2021 - 2025   |   Công nghệ phần mềm",
+      description: "Đã học các môn cốt lõi: lập trình, cơ sở dữ liệu, phát triển web, thiết kế phần mềm, phân tích hệ thống và quản lý dự án."
+    }
+  ],
+  experiences: [
+    {
+      organization: "edukidstaynguyen.com",
+      company: "edukidstaynguyen.com",
+      position: "6 tháng thực hành",
+      time: "",
+      description: "Làm quen quy trình phát triển sản phẩm, sửa lỗi, cải tiến giao diện và triển khai chức năng web/mobile. Thực hành xây dựng giao diện, viết API, xử lý dữ liệu và tích hợp các chức năng cơ bản."
+    }
+  ],
+  projects: [
+    {
+      id: "sample-weather",
+      title: "Weather",
+      status: "Fullstack Developer Junior",
+      created_at: "2026-03-01",
+      description: "Ứng dụng quản lý công việc kết hợp dữ liệu thời tiết theo thời gian thực.\n• Xây dựng API todo và weather, xác thực JWT, cache dữ liệu và giao diện mobile Flutter.",
+      tech_stack: ["Node.js", "Express.js", "MongoDB", "Flutter", "JWT", "OpenWeatherMap API"]
+    },
+    {
+      id: "sample-mini-pos",
+      title: "Mini POS",
+      status: "Fullstack Developer Junior",
+      created_at: "2026-04-01",
+      description: "Ứng dụng POS cho nhà hàng/quầy ăn nhỏ, hỗ trợ tạo đơn nhanh và theo dõi doanh thu.\n• Phát triển API thực đơn, đơn hàng, lịch sử giao dịch và dashboard cơ bản.",
+      tech_stack: ["Node.js", "Express.js", "MongoDB", "Flutter"]
+    },
+    {
+      id: "sample-agri-price",
+      title: "Giá Nông Sản",
+      status: "Flutter / Fullstack Developer Junior",
+      created_at: "2026-04-01",
+      description: "Ứng dụng theo dõi giá cà phê, hồ tiêu, sầu riêng, vàng và xăng dầu theo thời gian thực.\n• Tích hợp dữ liệu giá, biểu đồ, tin tức, thời tiết và cảnh báo qua Firebase Cloud Messaging.",
+      tech_stack: ["Flutter", "Node.js", "MongoDB", "Firebase Cloud Messaging"]
+    },
+    {
+      id: "sample-marketplace",
+      title: "Marketplace App & Website",
+      status: "Fullstack Developer Junior",
+      created_at: "2026-04-01",
+      description: "Hệ thống marketplace gồm website, mobile app và trang quản trị admin cho mô hình thương mại điện tử.\n• Xây dựng các chức năng đăng nhập, sản phẩm, giỏ hàng, đặt hàng và quản lý người dùng.",
+      tech_stack: ["React", "Flutter", "Node.js", "Express.js", "MongoDB", "Firebase"]
+    }
+  ],
+  certificates: [],
+  aiTools: "ChatGPT, Gemini, Grok, Ollama / Local AI. Chủ động dùng AI để hỗ trợ lập trình, kiểm thử ý tưởng, debug và tăng tốc phát triển tính năng.",
+  goal: "Ứng tuyển vị trí Fullstack Developer Junior, tiếp tục phát triển kỹ năng full-stack trong dự án thực tế và đóng góp vào sản phẩm web/mobile có giá trị sử dụng."
+};
+
 const PortfolioContext = createContext(null);
 
 function readStorage(key, fallbackValue) {
@@ -202,7 +293,6 @@ function hasDraftContent(content) {
     CONTENT_FIELDS.some((key) => content[key] !== null && content[key] !== undefined)
   );
 }
-
 function mergeSavedContentWithBrowserDraft(savedContent = {}, browserDraft = {}) {
   return CONTENT_FIELDS.reduce((merged, key) => ({
     ...merged,
@@ -499,6 +589,28 @@ function formatDate(dateString) {
   }).format(new Date(dateString));
 }
 
+function formatOptionalDate(dateString) {
+  if (!dateString) return "";
+  const normalized = String(dateString).trim();
+  if (!normalized) return "";
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return normalized;
+  return new Intl.DateTimeFormat("vi-VN", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  }).format(date);
+}
+
+function formatMonthYear(dateString) {
+  if (!dateString) return "";
+  const normalized = String(dateString).trim();
+  if (!normalized) return "";
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return normalized;
+  return `${String(date.getMonth() + 1).padStart(2, "0")}/${date.getFullYear()}`;
+}
+
 function formatPeriod(item) {
   if (item.time || item.period) return item.time || item.period;
   const start = item.start_date ? formatDate(item.start_date) : "";
@@ -536,6 +648,8 @@ function normalizeProfile(data) {
     contact_note: coalesce(data?.contact_note, data?.contactNote, fallbackProfile.contact_note),
     avatar_url: coalesce(data?.avatar_url, data?.avatarUrl, fallbackProfile.avatar_url),
     cv_url: coalesce(data?.cv_url, data?.cvUrl, ""),
+    birth_date: coalesce(data?.birth_date, data?.birthDate, data?.date_of_birth, data?.dateOfBirth, fallbackProfile.birth_date),
+    website_url: coalesce(data?.website_url, data?.websiteUrl, data?.site_url, data?.siteUrl, fallbackProfile.website_url),
     avatar_file_name: coalesce(data?.avatar_file_name, data?.avatarFileName, ""),
     cv_file_name: coalesce(data?.cv_file_name, data?.cvFileName, ""),
     github_url: coalesce(data?.github_url, data?.githubUrl, fallbackProfile.github_url),
@@ -554,6 +668,10 @@ function normalizeProject(project, index = 0) {
     description: coalesce(project.description, project.excerpt, ""),
     thumbnail_url: coalesce(project.thumbnail_url, project.thumbnailUrl, project.cover_url),
     cover_url: coalesce(project.cover_url, project.coverUrl, project.thumbnail_url),
+    app_demo_image_url: coalesce(project.app_demo_image_url, project.appDemoImageUrl, project.app_image_url, project.appImageUrl, ""),
+    web_demo_image_url: coalesce(project.web_demo_image_url, project.webDemoImageUrl, project.web_image_url, project.webImageUrl, ""),
+    app_demo_file_name: coalesce(project.app_demo_file_name, project.appDemoFileName, ""),
+    web_demo_file_name: coalesce(project.web_demo_file_name, project.webDemoFileName, ""),
     tech_stack: asArray(coalesce(project.tech_stack, project.techStack)),
     status: coalesce(project.status, "Published"),
     demo_url: coalesce(project.demo_url, project.demoUrl),
@@ -691,6 +809,8 @@ function toEditableProfile(profile) {
     contact_note: profile.contact_note ?? "",
     avatar_url: profile.avatar_url ?? "",
     cv_url: profile.cv_url ?? "",
+    birth_date: profile.birth_date ?? "",
+    website_url: profile.website_url ?? "",
     avatar_file_name: profile.avatar_file_name ?? "",
     cv_file_name: profile.cv_file_name ?? "",
     email: profile.email ?? "",
@@ -1271,6 +1391,14 @@ function CvSectionIcon({ type }) {
     return <svg {...common}><path d="M20 10c0 5-8 12-8 12S4 15 4 10a8 8 0 1 1 16 0Z" /><circle cx="12" cy="10" r="2" /></svg>;
   }
 
+  if (type === "birth") {
+    return <svg {...common}><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M16 2v4" /><path d="M8 2v4" /><path d="M3 10h18" /><path d="M8 14h.01" /><path d="M12 14h.01" /><path d="M16 14h.01" /></svg>;
+  }
+
+  if (type === "website") {
+    return <svg {...common}><circle cx="12" cy="12" r="10" /><path d="M2 12h20" /><path d="M12 2a15 15 0 0 1 0 20" /><path d="M12 2a15 15 0 0 0 0 20" /></svg>;
+  }
+
   return <svg {...common}><rect width="18" height="15" x="3" y="5" rx="2" /><path d="M8 5V3h8v2" /><path d="M3 10h18" /></svg>;
 }
 
@@ -1330,7 +1458,9 @@ function CvProfileHero({ profile, onExportPdf }) {
           <div className="cv-profile-meta">
             <CvContactItem type="email" href={profile.email ? `mailto:${profile.email}` : ""}>{profile.email}</CvContactItem>
             <CvContactItem type="phone" href={profile.phone ? `tel:${profile.phone.replaceAll(" ", "")}` : ""}>{profile.phone}</CvContactItem>
+            <CvContactItem type="birth">{profile.birth_date ? `Ngày sinh: ${formatOptionalDate(profile.birth_date)}` : ""}</CvContactItem>
             <CvContactItem type="location">{profile.location}</CvContactItem>
+            <CvContactItem type="website" href={profile.website_url}>{profile.website_url}</CvContactItem>
           </div>
 
           <div className="cv-social-icons" aria-label="Social links">
@@ -1432,6 +1562,206 @@ function CvExperienceSection({ status, experiences }) {
         ))}
       </div>
     </section>
+  );
+}
+
+function CvPrintSection({ label, children, className = "" }) {
+  if (!children) return null;
+  return (
+    <section className={`cv-print-section ${className}`.trim()}>
+      <h2>{label}</h2>
+      <div>{children}</div>
+    </section>
+  );
+}
+
+function CvPrintHeader({ profile }) {
+  const leftContactItems = [
+    profile.phone,
+    profile.email,
+    profile.location
+  ].filter(Boolean);
+  const rightContactItems = [
+    profile.birth_date ? `Ngày sinh: ${formatOptionalDate(profile.birth_date)}` : "",
+    profile.website_url
+  ].filter(Boolean);
+
+  return (
+    <header className="cv-print-header">
+      <AvatarImage src={profile.avatar_url} alt={`Avatar ${profile.full_name}`} />
+      <div className="cv-print-header-copy">
+        <h1>{profile.full_name || DEFAULT_SITE_TITLE}</h1>
+        {profile.title ? <p>{profile.title}</p> : null}
+        <div className="cv-print-contact-grid">
+          <div>
+            {leftContactItems.map((item) => <span key={item}>{item}</span>)}
+          </div>
+          <div>
+            {rightContactItems.map((item) => <span key={item}>{item}</span>)}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function CvPrintSkillsTable({ skillEntries }) {
+  const skills = skillEntries.flatMap(([group, groupSkills]) =>
+    groupSkills.map((skill) => ({ group, name: skill.name }))
+  );
+
+  if (!skills.length) return null;
+
+  const rows = [];
+  for (let index = 0; index < skills.length; index += 4) {
+    rows.push(skills.slice(index, index + 4));
+  }
+
+  return (
+    <div className="cv-print-skill-block">
+      <h3>Kỹ năng chính</h3>
+      <div className="cv-print-skills">
+        {rows.map((row, rowIndex) => (
+          <div className="cv-print-skill-row" key={`skill-row-${rowIndex}`}>
+            {row.map((skill) => <span key={`${skill.group}-${skill.name}`}>{skill.name}</span>)}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function CvPrintTextSection({ text }) {
+  if (!text) return null;
+  return <p className="multiline-text">{text}</p>;
+}
+
+function CvPrintDocument({ profile, skillEntries, education, certificates, experiences, projects, aiTools = "", goal = "" }) {
+  const [primaryProject, ...remainingProjects] = projects;
+
+  return (
+    <article className="cv-print-document" aria-label="Printable CV">
+      <CvPrintHeader profile={profile} />
+      <div className="cv-print-body">
+        {profile.bio ? (
+          <CvPrintSection label="Giới thiệu">
+          {profile.bio ? <p className="multiline-text">{profile.bio}</p> : null}
+          </CvPrintSection>
+        ) : null}
+        {education.length ? (
+          <CvPrintSection label="Học vấn">
+            <CvPrintEducation education={education} />
+          </CvPrintSection>
+        ) : null}
+        {skillEntries.length ? (
+          <CvPrintSection label="Kỹ năng">
+            <CvPrintSkillsTable skillEntries={skillEntries} />
+          </CvPrintSection>
+        ) : null}
+        {experiences.length ? (
+          <CvPrintSection label="Kinh nghiệm">
+            <CvPrintExperiences experiences={experiences} />
+          </CvPrintSection>
+        ) : null}
+        {projects.length ? (
+          <CvPrintSection label="Dự án tiêu biểu" className="cv-print-project-section">
+            <CvPrintProjects projects={primaryProject ? [primaryProject] : []} />
+          </CvPrintSection>
+        ) : null}
+        {remainingProjects.length ? (
+          <CvPrintSection label="Dự án tiêu biểu" className="cv-print-project-section cv-print-page-break-before">
+            <CvPrintProjects projects={remainingProjects} />
+          </CvPrintSection>
+        ) : null}
+        {certificates.length ? (
+          <CvPrintSection label="Chứng chỉ">
+            <CvPrintCertificates certificates={certificates} />
+          </CvPrintSection>
+        ) : null}
+        {aiTools ? (
+          <CvPrintSection label="Công cụ AI">
+            <CvPrintTextSection text={aiTools} />
+          </CvPrintSection>
+        ) : null}
+        {goal ? (
+          <CvPrintSection label="Mục tiêu">
+            <CvPrintTextSection text={goal} />
+          </CvPrintSection>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+function CvPrintEducation({ education }) {
+  if (!education.length) return null;
+  return (
+    <div className="cv-print-stack">
+      {education.map((item) => (
+        <article className="cv-print-entry" key={item.id}>
+          <div className="cv-print-entry-head">
+            <h3>{[item.degree, item.school].filter(Boolean).join(" - ")}</h3>
+            {item.time ? <time>{item.time}</time> : null}
+          </div>
+          {item.description ? <p className="multiline-text">{item.description}</p> : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CvPrintExperiences({ experiences }) {
+  if (!experiences.length) return null;
+  return (
+    <div className="cv-print-stack">
+      {experiences.map((item, index) => (
+        <article className="cv-print-entry" key={`${item.organization}-${index}`}>
+          <div className="cv-print-entry-head">
+            <h3>{[item.position, item.organization].filter(Boolean).join(" - ")}</h3>
+            {item.time ? <time>{item.time}</time> : null}
+          </div>
+          {item.description ? <p className="multiline-text">{item.description}</p> : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CvPrintProjects({ projects }) {
+  if (!projects.length) return null;
+  return (
+    <div className="cv-print-projects">
+      {projects.map((project) => (
+        <article className="cv-print-project" key={project.id ?? project.slug}>
+          <div className="cv-print-project-head">
+            <div>
+              <h3>{project.title}</h3>
+              {project.status ? <em>{project.status}</em> : null}
+            </div>
+            {project.created_at ? <time>{formatMonthYear(project.created_at)}</time> : null}
+          </div>
+          {project.description ? <p className="multiline-text">{project.description}</p> : null}
+          {project.tech_stack.length ? <p className="cv-print-tech">Công nghệ: {project.tech_stack.join(", ")}</p> : null}
+        </article>
+      ))}
+    </div>
+  );
+}
+
+function CvPrintCertificates({ certificates }) {
+  if (!certificates.length) return null;
+  return (
+    <div className="cv-print-stack">
+      {certificates.map((item) => (
+        <article className="cv-print-entry" key={item.id}>
+          <div className="cv-print-entry-head">
+            <h3>{item.title}</h3>
+            {item.time ? <time>{item.time}</time> : null}
+          </div>
+          {item.issuer ? <p>{item.issuer}</p> : null}
+        </article>
+      ))}
+    </div>
   );
 }
 
@@ -1595,9 +1925,14 @@ function PremiumCVPage() {
   const profileState = useAsyncData(getProfile, []);
   const skillsState = useAsyncData(getSkills, []);
   const experiencesState = useAsyncData(getExperiences, []);
+  const projectsState = useAsyncData(getProjects, []);
   const profile = getEffectiveProfile(content, profileState.data);
   const effectiveSkills = selectArrayState(skillsState, content.cvDraft?.skills, fallbackSkills);
   const effectiveExperiences = selectArrayState(experiencesState, content.cvDraft?.experiences, fallbackExperiences);
+  const localProjects = Array.isArray(content.projectsDraft)
+    ? content.projectsDraft.filter((item) => item.published !== false)
+    : null;
+  const effectiveProjects = selectArrayState(projectsState, localProjects, fallbackProjects.filter((item) => item.published));
   const education = useMemo(
     () => (content.cvDraft?.education ?? fallbackEducation).map(normalizeEducationItem),
     [content.cvDraft?.education]
@@ -1612,11 +1947,10 @@ function PremiumCVPage() {
     () => (effectiveExperiences.data ?? []).map(normalizeExperience),
     [effectiveExperiences.data]
   );
-  const profileName = useMemo(() => splitProfileName(profile.full_name), [profile.full_name]);
 
   function handleExportPdf() {
     const previousTitle = document.title;
-    const fileBaseName = profile.full_name ? `${profile.full_name} CV` : "CV";
+    const fileBaseName = sampleCvPrintData.profile.full_name ? `${sampleCvPrintData.profile.full_name} CV` : "CV";
     document.title = fileBaseName;
     window.print();
     window.setTimeout(() => {
@@ -1626,21 +1960,33 @@ function PremiumCVPage() {
 
   return (
     <main className="page-shell cv-premium-page">
-      <div className="container cv-premium-container">
-        <CvProfileHero profile={profile} onExportPdf={handleExportPdf} />
+      <div className="cv-screen-content">
+        <div className="container cv-premium-container">
+          <CvProfileHero profile={profile} onExportPdf={handleExportPdf} />
 
-        <div className="cv-premium-layout">
-          <aside className="cv-support-column">
-            <CvSkillsSection status={effectiveSkills.status} skillEntries={skillEntries} />
-            <CvEducationSection education={education} />
-            <CvCertificatesSection certificates={certificates} />
-          </aside>
+          <div className="cv-premium-layout">
+            <aside className="cv-support-column">
+              <CvSkillsSection status={effectiveSkills.status} skillEntries={skillEntries} />
+              <CvEducationSection education={education} />
+              <CvCertificatesSection certificates={certificates} />
+            </aside>
 
-          <div className="cv-main-column">
-            <CvExperienceSection status={effectiveExperiences.status} experiences={experiences} />
+            <div className="cv-main-column">
+              <CvExperienceSection status={effectiveExperiences.status} experiences={experiences} />
+            </div>
           </div>
         </div>
       </div>
+      <CvPrintDocument
+        profile={sampleCvPrintData.profile}
+        skillEntries={sampleCvPrintData.skillEntries}
+        education={sampleCvPrintData.education}
+        certificates={sampleCvPrintData.certificates}
+        experiences={sampleCvPrintData.experiences}
+        projects={sampleCvPrintData.projects}
+        aiTools={sampleCvPrintData.aiTools}
+        goal={sampleCvPrintData.goal}
+      />
     </main>
   );
 }
@@ -1681,6 +2027,32 @@ function ProjectsPage() {
   );
 }
 
+function ProjectDemoImages({ project }) {
+  const demos = [
+    { label: "App demo", src: project.app_demo_image_url, kind: "mobile" },
+    { label: "Web demo", src: project.web_demo_image_url, kind: "portfolio" }
+  ].filter((item) => item.src);
+
+  if (!demos.length) return null;
+
+  return (
+    <section className="project-demo-section" aria-labelledby="project-demo-title">
+      <div className="section-title compact">
+        <p className="kicker">Demo images</p>
+        <h2 id="project-demo-title">App / Web demo</h2>
+      </div>
+      <div className="project-demo-grid">
+        {demos.map((demo) => (
+          <article className="project-demo-card" key={demo.label}>
+            <h3>{demo.label}</h3>
+            <ImageWithFallback src={demo.src} alt={`${project.title} ${demo.label}`} kind={demo.kind} className="project-demo-image" />
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function ProjectDetailContent({ projectData }) {
   const project = normalizeProject(projectData);
 
@@ -1717,6 +2089,7 @@ function ProjectDetailContent({ projectData }) {
             {project.demo_url ? <ButtonLink href={project.demo_url} label="View Live Demo" external /> : null}
             {project.github_url ? <ButtonLink href={project.github_url} label="View on GitHub" variant="secondary" external /> : null}
           </div>
+          <ProjectDemoImages project={project} />
           <article className="markdown-content">
             <ReactMarkdown>{project.content}</ReactMarkdown>
           </article>
@@ -1993,6 +2366,8 @@ function ProfileEditor() {
       <div className="form-grid two profile-form-grid">
         <Field label="Lời chào hero" value={form.greeting} onChange={(value) => updateField("greeting", value)} />
         <Field label="Họ tên" value={form.full_name} onChange={(value) => updateField("full_name", value)} />
+        <Field label="Ngày sinh" type="date" value={form.birth_date} onChange={(value) => updateField("birth_date", value)} />
+        <Field label="Website URL" value={form.website_url} onChange={(value) => updateField("website_url", value)} />
         <div className="profile-field-stack">
           <Field label="Chức danh" value={form.title} onChange={(value) => updateField("title", value)} />
           <div className="file-upload-row cv-upload-row">
@@ -2292,6 +2667,10 @@ function ProjectsEditor() {
       is_featured: false,
       published: true,
       created_at: new Date().toISOString(),
+      app_demo_image_url: "",
+      web_demo_image_url: "",
+      app_demo_file_name: "",
+      web_demo_file_name: "",
       visual_kind: "portfolio"
     });
     setProjects((items) => [...items, nextProject]);
@@ -2355,6 +2734,32 @@ function ProjectsEditor() {
               <Field label="Cover URL" value={activeProject.cover_url} onChange={(value) => updateActive({ cover_url: value })} />
               <Field label="Demo URL" value={activeProject.demo_url} onChange={(value) => updateActive({ demo_url: value })} />
               <Field label="GitHub URL" value={activeProject.github_url} onChange={(value) => updateActive({ github_url: value })} />
+            </div>
+            <div className="project-demo-admin-grid">
+              <div className="file-upload-row">
+                <Field label="App demo image URL" value={activeProject.app_demo_image_url} onChange={(value) => updateActive({ app_demo_image_url: value })} />
+                <FileUploadField
+                  label="Upload App demo image"
+                  accept="image/*"
+                  fileName={activeProject.app_demo_file_name}
+                  onFileReady={(dataUrl, fileName) => updateActive({ app_demo_image_url: dataUrl, app_demo_file_name: fileName })}
+                />
+                {activeProject.app_demo_image_url ? (
+                  <img className="admin-image-preview" src={activeProject.app_demo_image_url} alt="App demo preview" />
+                ) : null}
+              </div>
+              <div className="file-upload-row">
+                <Field label="Web demo image URL" value={activeProject.web_demo_image_url} onChange={(value) => updateActive({ web_demo_image_url: value })} />
+                <FileUploadField
+                  label="Upload Web demo image"
+                  accept="image/*"
+                  fileName={activeProject.web_demo_file_name}
+                  onFileReady={(dataUrl, fileName) => updateActive({ web_demo_image_url: dataUrl, web_demo_file_name: fileName })}
+                />
+                {activeProject.web_demo_image_url ? (
+                  <img className="admin-image-preview" src={activeProject.web_demo_image_url} alt="Web demo preview" />
+                ) : null}
+              </div>
             </div>
             <Field label="Description" value={activeProject.description} multiline onChange={(value) => updateActive({ description: value })} />
             <Field label="Content Markdown" value={activeProject.content} multiline onChange={(value) => updateActive({ content: value })} />

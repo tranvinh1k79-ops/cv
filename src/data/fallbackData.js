@@ -9,6 +9,8 @@ export const fallbackProfile = {
   contact_note: "Gửi email hoặc kết nối qua social links, tôi sẽ phản hồi sớm nhất có thể.",
   avatar_url: fallbackAvatar,
   cv_url: "",
+  birth_date: "2003-02-14",
+  website_url: "https://ngyen2k3-cv.vercel.app/",
   email: "",
   phone: "+84 123 456 789",
   location: "Việt Nam",

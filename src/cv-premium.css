@@ -24,6 +24,283 @@
   background-size: 52px 52px, 52px 52px, auto, auto, auto !important;
 }
 
+.cv-print-document {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body {
+    width: 210mm !important;
+    min-width: 0 !important;
+    color: #1f2933 !important;
+    background: #ffffff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .cv-premium-page {
+    width: 210mm !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    color: #1f2933 !important;
+    background: #ffffff !important;
+  }
+
+  .cv-screen-content {
+    display: none !important;
+  }
+
+  .cv-print-document {
+    display: block !important;
+    width: 210mm !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    color: #17202a !important;
+    background: #ffffff !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 8.8pt !important;
+    line-height: 1.42 !important;
+  }
+
+  .cv-print-header {
+    display: grid !important;
+    grid-template-columns: 26mm minmax(0, 1fr) !important;
+    gap: 6mm !important;
+    align-items: center !important;
+    min-height: 50mm !important;
+    padding: 10mm 18mm 9mm !important;
+    color: #ffffff !important;
+    background: #333a42 !important;
+    break-inside: avoid !important;
+  }
+
+  .cv-print-header img {
+    width: 25mm !important;
+    height: 25mm !important;
+    border: 0.5mm solid rgba(255, 255, 255, 0.8) !important;
+    border-radius: 2mm !important;
+    object-fit: cover !important;
+  }
+
+  .cv-print-header-copy {
+    display: grid !important;
+    gap: 2mm !important;
+    min-width: 0 !important;
+  }
+
+  .cv-print-header h1 {
+    margin: 0 !important;
+    color: #ffffff !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 18pt !important;
+    font-weight: 800 !important;
+    line-height: 1.05 !important;
+    letter-spacing: 0 !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-header p {
+    margin: 0 !important;
+    color: #ffffff !important;
+    font-size: 9.6pt !important;
+    font-weight: 700 !important;
+    line-height: 1.2 !important;
+    text-transform: uppercase !important;
+  }
+
+  .cv-print-contact-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 1.8mm 20mm !important;
+    margin-top: 2mm !important;
+  }
+
+  .cv-print-contact-grid > div {
+    display: grid !important;
+    gap: 1.8mm !important;
+    min-width: 0 !important;
+  }
+
+  .cv-print-contact-grid span {
+    display: block !important;
+    min-width: 0 !important;
+    color: #ffffff !important;
+    font-size: 8pt !important;
+    line-height: 1.25 !important;
+    overflow-wrap: anywhere !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-body {
+    display: grid !important;
+    gap: 0 !important;
+    padding: 20mm 18mm 16mm !important;
+    background: #ffffff !important;
+  }
+
+  .cv-print-section {
+    display: grid !important;
+    grid-template-columns: 26mm minmax(0, 1fr) !important;
+    gap: 9mm !important;
+    padding: 5.2mm 0 !important;
+    border-top: 0.25mm solid #cfd6dc !important;
+    color: #17202a !important;
+    break-inside: auto !important;
+  }
+
+  .cv-print-section:first-child {
+    border-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .cv-print-page-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
+    border-top: 0 !important;
+    padding-top: 18mm !important;
+  }
+
+  .cv-print-section > h2 {
+    margin: 0 !important;
+    color: #111827 !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 10.4pt !important;
+    font-weight: 800 !important;
+    line-height: 1.18 !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-section > div {
+    min-width: 0 !important;
+  }
+
+  .cv-print-section p {
+    margin: 0 !important;
+    color: #263238 !important;
+    font-size: 8.4pt !important;
+    line-height: 1.46 !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-stack,
+  .cv-print-projects {
+    display: grid !important;
+    gap: 3.5mm !important;
+  }
+
+  .cv-print-entry,
+  .cv-print-project {
+    min-width: 0 !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .cv-print-entry + .cv-print-entry,
+  .cv-print-project + .cv-print-project {
+    padding-top: 3.5mm !important;
+    border-top: 0.2mm solid #d9dee3 !important;
+  }
+
+  .cv-print-entry-head,
+  .cv-print-project-head {
+    display: flex !important;
+    justify-content: space-between !important;
+    gap: 5mm !important;
+    align-items: flex-start !important;
+  }
+
+  .cv-print-entry h3,
+  .cv-print-project h3 {
+    margin: 0 !important;
+    color: #111827 !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 9pt !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-entry time,
+  .cv-print-project time {
+    flex: 0 0 auto !important;
+    color: #111827 !important;
+    font-size: 8pt !important;
+    font-weight: 800 !important;
+    line-height: 1.25 !important;
+  }
+
+  .cv-print-entry p,
+  .cv-print-project p {
+    margin-top: 1.5mm !important;
+  }
+
+  .cv-print-project em {
+    display: block !important;
+    margin-top: 0.7mm !important;
+    color: #374151 !important;
+    font-size: 7.7pt !important;
+    font-style: italic !important;
+    line-height: 1.25 !important;
+  }
+
+  .cv-print-tech {
+    margin-top: 1.6mm !important;
+    color: #4b5563 !important;
+    font-size: 7.8pt !important;
+  }
+
+  .cv-print-skill-block {
+    display: grid !important;
+    gap: 2mm !important;
+  }
+
+  .cv-print-skill-block h3 {
+    margin: 0 !important;
+    color: #111827 !important;
+    font-family: Arial, "Segoe UI", sans-serif !important;
+    font-size: 8.5pt !important;
+    font-weight: 800 !important;
+    line-height: 1.2 !important;
+  }
+
+  .cv-print-skills {
+    width: 100% !important;
+    max-width: 112mm !important;
+    border: 0.2mm solid #d6dde3 !important;
+    background: #f5f7f9 !important;
+  }
+
+  .cv-print-skill-row {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+
+  .cv-print-skill-row + .cv-print-skill-row {
+    border-top: 0.2mm solid #e1e6ea !important;
+  }
+
+  .cv-print-skill-row span {
+    min-width: 0 !important;
+    padding: 1.4mm 2mm !important;
+    border-right: 0.2mm solid #e1e6ea !important;
+    color: #111827 !important;
+    font-size: 7.5pt !important;
+    line-height: 1.2 !important;
+    overflow-wrap: anywhere !important;
+    text-shadow: none !important;
+  }
+
+  .cv-print-skill-row span:last-child {
+    border-right: 0 !important;
+  }
+}
+
 .cv-premium-page .cv-premium-container {
   width: min(calc(100% - 40px), 1180px);
 }
@@ -967,5 +1244,41 @@ a.cv-meta-item:hover {
   .cv-experience-heading time,
   .cv-experience-item p {
     text-shadow: none !important;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+
+  html,
+  body,
+  .cv-premium-page {
+    width: 210mm !important;
+    min-width: 0 !important;
+    color: #1f2933 !important;
+    background: #ffffff !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body::before {
+    display: none !important;
+    content: none !important;
+  }
+
+  .cv-premium-page {
+    min-height: auto !important;
+    padding: 0 !important;
+  }
+
+  .cv-screen-content {
+    display: none !important;
+  }
+
+  .cv-print-document {
+    display: block !important;
   }
 }
