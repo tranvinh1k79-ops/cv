@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { hasValidAdminSession } from "./admin-login.js";
+import { migrateContentAssets } from "../server/supabase-storage.js";
 
 const CONTENT_ROW_ID = "main";
 const EMPTY_CONTENT = {
@@ -88,7 +89,7 @@ async function writeContent(request, response) {
 
   const supabase = getSupabaseClient();
   const now = new Date().toISOString();
-  const content = normalizeContent(await readJsonBody(request), now);
+  const content = await migrateContentAssets(normalizeContent(await readJsonBody(request), now));
   const { data, error } = await supabase
     .from("portfolio_content")
     .upsert(

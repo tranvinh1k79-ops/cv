@@ -326,6 +326,22 @@ async function writeFileBackedContent(content) {
   return response.json();
 }
 
+async function uploadAdminAsset(dataUrl, fileName, folder) {
+  const response = await fetch("/api/admin-upload", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify({ dataUrl, fileName, folder })
+  });
+
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.detail || body.error || `Cannot upload asset (${response.status})`);
+  }
+
+  return response.json();
+}
+
 function PortfolioProvider({ children }) {
   const [session, setSession] = usePersistentState(STORAGE_KEYS.session, false);
   const [profileDraft, setProfileDraft] = usePersistentState(STORAGE_KEYS.profile, null);
@@ -469,7 +485,7 @@ function PortfolioProvider({ children }) {
     },
     saveProfile(nextProfile) {
       setProfileDraft(nextProfile);
-      persistDrafts({ profile: nextProfile });
+      return persistDrafts({ profile: nextProfile });
     },
     resetProfile() {
       setProfileDraft(null);
@@ -2308,28 +2324,44 @@ function ToggleField({ label, checked, onChange }) {
   );
 }
 
-function FileUploadField({ label, accept, fileName, onFileReady, imageOptions = null }) {
+function FileUploadField({
+  label,
+  accept,
+  fileName,
+  onFileReady,
+  imageOptions = null,
+  storageFolder = ""
+}) {
   const [error, setError] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
   async function handleChange(event) {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsUploading(true);
     try {
       const dataUrl = imageOptions
         ? await optimizeImageFile(file, imageOptions)
         : await readFileAsDataUrl(file);
-      onFileReady(dataUrl, file.name);
+      const value = storageFolder
+        ? (await uploadAdminAsset(dataUrl, file.name, storageFolder)).url
+        : dataUrl;
+      await onFileReady(value, file.name);
       setError("");
-    } catch {
-      setError("Cannot read this file.");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Cannot upload this file.");
+    } finally {
+      setIsUploading(false);
+      event.target.value = "";
     }
   }
 
   return (
     <label className="field file-field">
       <span>{label}</span>
-      <input type="file" accept={accept} onChange={handleChange} />
+      <input type="file" accept={accept} onChange={handleChange} disabled={isUploading} />
+      {isUploading ? <small>Đang tải file lên Supabase Storage...</small> : null}
       {fileName ? <small>Selected: {fileName}</small> : null}
       {error ? <small className="form-error">{error}</small> : null}
     </label>
@@ -2385,6 +2417,7 @@ function ProfileEditor() {
   const sourceProfile = getEffectiveProfile(content, profileState.data);
   const [form, setForm] = useState(() => toEditableProfile(sourceProfile));
   const [notice, setNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setForm(toEditableProfile(sourceProfile));
@@ -2394,9 +2427,24 @@ function ProfileEditor() {
     setForm((current) => ({ ...current, [name]: value }));
   }
 
-  function save() {
-    content.saveProfile(form);
-    setNotice("Đã lưu lời chào và hồ sơ CV.");
+  async function save() {
+    setIsSaving(true);
+    const saved = await content.saveProfile(form);
+    setNotice(saved
+      ? "Đã lưu lời chào và hồ sơ CV."
+      : "Chưa lưu được lên kho dữ liệu. Bản chỉnh sửa vẫn còn trong localStorage.");
+    setIsSaving(false);
+  }
+
+  async function saveUploadedAsset(patch) {
+    const nextForm = { ...form, ...patch };
+    setForm(nextForm);
+    setNotice("Đang lưu URL file vào kho dữ liệu...");
+    const saved = await content.saveProfile(nextForm);
+    setNotice(saved
+      ? "Đã tải file lên Supabase Storage và lưu URL."
+      : "File đã tải lên Storage nhưng chưa lưu được URL vào kho dữ liệu.");
+    if (!saved) throw new Error("Không thể lưu URL file vào kho dữ liệu.");
   }
 
   function reset() {
@@ -2413,7 +2461,9 @@ function ProfileEditor() {
         </div>
         <div className="admin-actions">
           <button className="button secondary" type="button" onClick={reset}>Reset</button>
-          <button className="button" type="button" onClick={save}>Lưu thay đổi</button>
+          <button className="button" type="button" onClick={save} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "Lưu thay đổi"}
+          </button>
         </div>
       </div>
       {notice ? <p className="admin-notice">{notice}</p> : null}
@@ -2430,7 +2480,8 @@ function ProfileEditor() {
               label="Upload CV PDF"
               accept="application/pdf"
               fileName={form.cv_file_name}
-              onFileReady={(dataUrl, fileName) => setForm((current) => ({ ...current, cv_url: dataUrl, cv_file_name: fileName }))}
+              storageFolder="profile/cv"
+              onFileReady={(url, fileName) => saveUploadedAsset({ cv_url: url, cv_file_name: fileName })}
             />
           </div>
         </div>
@@ -2440,7 +2491,9 @@ function ProfileEditor() {
             label="Upload avatar image"
             accept="image/*"
             fileName={form.avatar_file_name}
-            onFileReady={(dataUrl, fileName) => setForm((current) => ({ ...current, avatar_url: dataUrl, avatar_file_name: fileName }))}
+            imageOptions={{ maxWidth: 1200, maxHeight: 1200, maxBytes: 800_000, quality: 0.86 }}
+            storageFolder="profile/avatar"
+            onFileReady={(url, fileName) => saveUploadedAsset({ avatar_url: url, avatar_file_name: fileName })}
           />
         </div>
         <Field label="Email" value={form.email} onChange={(value) => updateField("email", value)} />
@@ -2709,6 +2762,17 @@ function ProjectsEditor() {
     setProjects((items) => items.map((item) => item.id === activeProject.id ? { ...item, ...patch } : item));
   }
 
+  async function saveUploadedProjectAsset(patch) {
+    const nextProjects = projects.map((item) => item.id === activeProject.id ? { ...item, ...patch } : item);
+    setProjects(nextProjects);
+    setNotice("Đang lưu URL ảnh vào kho dữ liệu...");
+    const saved = await content.saveProjects(nextProjects.map(fromEditableProject));
+    setNotice(saved
+      ? "Đã tải ảnh lên Supabase Storage và tự động lưu project."
+      : "Ảnh đã tải lên Storage nhưng chưa lưu được URL vào kho dữ liệu.");
+    if (!saved) throw new Error("Không thể lưu URL ảnh vào kho dữ liệu.");
+  }
+
   function addProject() {
     const id = `local-${Date.now()}`;
     const nextProject = toEditableProject({
@@ -2814,7 +2878,8 @@ function ProjectsEditor() {
                   accept="image/*"
                   fileName={activeProject.app_demo_file_name}
                   imageOptions={PROJECT_IMAGE_OPTIONS}
-                  onFileReady={(dataUrl, fileName) => updateActive({ app_demo_image_url: dataUrl, app_demo_file_name: fileName })}
+                  storageFolder={`projects/${activeProject.slug || activeProject.id}/app-demo`}
+                  onFileReady={(url, fileName) => saveUploadedProjectAsset({ app_demo_image_url: url, app_demo_file_name: fileName })}
                 />
                 {activeProject.app_demo_image_url ? (
                   <img className="admin-image-preview" src={activeProject.app_demo_image_url} alt="App demo preview" />
@@ -2827,7 +2892,8 @@ function ProjectsEditor() {
                   accept="image/*"
                   fileName={activeProject.web_demo_file_name}
                   imageOptions={PROJECT_IMAGE_OPTIONS}
-                  onFileReady={(dataUrl, fileName) => updateActive({ web_demo_image_url: dataUrl, web_demo_file_name: fileName })}
+                  storageFolder={`projects/${activeProject.slug || activeProject.id}/web-demo`}
+                  onFileReady={(url, fileName) => saveUploadedProjectAsset({ web_demo_image_url: url, web_demo_file_name: fileName })}
                 />
                 {activeProject.web_demo_image_url ? (
                   <img className="admin-image-preview" src={activeProject.web_demo_image_url} alt="Web demo preview" />
