@@ -410,9 +410,10 @@ function PortfolioProvider({ children }) {
     const nextContent = { ...contentSnapshot, ...overrides };
     setSyncState({ status: "saving", message: "Đang lưu dữ liệu..." });
 
-    writeFileBackedContent(nextContent)
+    return writeFileBackedContent(nextContent)
       .then(() => {
         setSyncState({ status: "saved", message: "Đã lưu dữ liệu vào kho lưu" });
+        return true;
       })
       .catch((error) => {
         setSyncState({
@@ -420,6 +421,7 @@ function PortfolioProvider({ children }) {
           message: "Lưu kho dữ liệu lỗi, dữ liệu vẫn còn trong localStorage"
         });
         console.warn("Unable to save file-backed content", error);
+        return false;
       });
   }, [contentSnapshot]);
 
@@ -483,7 +485,7 @@ function PortfolioProvider({ children }) {
     },
     saveProjects(nextProjects) {
       setProjectsDraft(nextProjects);
-      persistDrafts({ projects: nextProjects });
+      return persistDrafts({ projects: nextProjects });
     },
     resetProjects() {
       setProjectsDraft(null);
@@ -631,6 +633,77 @@ function readFileAsDataUrl(file) {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(file);
   });
+}
+
+function loadImageSource(source) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Cannot load image."));
+    image.src = source;
+  });
+}
+
+async function optimizeImageDataUrl(dataUrl, {
+  maxWidth = 1800,
+  maxHeight = 1000,
+  maxBytes = 650_000,
+  quality = 0.82
+} = {}) {
+  if (!String(dataUrl || "").startsWith("data:image/")) return dataUrl;
+  if (dataUrl.length <= maxBytes * 1.34) return dataUrl;
+
+  const image = await loadImageSource(dataUrl);
+  let scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+  let currentQuality = quality;
+  let optimized = dataUrl;
+
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+    canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const context = canvas.getContext("2d");
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    optimized = canvas.toDataURL("image/webp", currentQuality);
+
+    if (optimized.length <= maxBytes * 1.34) return optimized;
+    if (currentQuality > 0.58) {
+      currentQuality -= 0.08;
+    } else {
+      scale *= 0.82;
+    }
+  }
+
+  return optimized;
+}
+
+async function optimizeImageFile(file, options) {
+  const dataUrl = await readFileAsDataUrl(file);
+  return optimizeImageDataUrl(dataUrl, options);
+}
+
+const PROJECT_IMAGE_OPTIONS = {
+  maxWidth: 1800,
+  maxHeight: 1000,
+  maxBytes: 650_000,
+  quality: 0.82
+};
+
+async function optimizeProjectImages(project) {
+  const [thumbnailUrl, coverUrl, appDemoImageUrl, webDemoImageUrl] = await Promise.all([
+    optimizeImageDataUrl(project.thumbnail_url, PROJECT_IMAGE_OPTIONS),
+    optimizeImageDataUrl(project.cover_url, PROJECT_IMAGE_OPTIONS),
+    optimizeImageDataUrl(project.app_demo_image_url, PROJECT_IMAGE_OPTIONS),
+    optimizeImageDataUrl(project.web_demo_image_url, PROJECT_IMAGE_OPTIONS)
+  ]);
+
+  return {
+    ...project,
+    thumbnail_url: thumbnailUrl,
+    cover_url: coverUrl,
+    app_demo_image_url: appDemoImageUrl,
+    web_demo_image_url: webDemoImageUrl
+  };
 }
 
 function fallbackKind(index, wide = false) {
@@ -2235,7 +2308,7 @@ function ToggleField({ label, checked, onChange }) {
   );
 }
 
-function FileUploadField({ label, accept, fileName, onFileReady }) {
+function FileUploadField({ label, accept, fileName, onFileReady, imageOptions = null }) {
   const [error, setError] = useState("");
 
   async function handleChange(event) {
@@ -2243,7 +2316,9 @@ function FileUploadField({ label, accept, fileName, onFileReady }) {
     if (!file) return;
 
     try {
-      const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = imageOptions
+        ? await optimizeImageFile(file, imageOptions)
+        : await readFileAsDataUrl(file);
       onFileReady(dataUrl, file.name);
       setError("");
     } catch {
@@ -2620,6 +2695,7 @@ function ProjectsEditor() {
   const [projects, setProjects] = useState(() => sourceProjects.map(toEditableProject));
   const [activeId, setActiveId] = useState(() => sourceProjects[0]?.id ?? sourceProjects[0]?.slug ?? "");
   const [notice, setNotice] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     const nextProjects = sourceProjects.map(toEditableProject);
@@ -2656,9 +2732,23 @@ function ProjectsEditor() {
     setActiveId(id);
   }
 
-  function save() {
-    content.saveProjects(projects.map(fromEditableProject));
-    setNotice("Đã lưu danh sách projects.");
+  async function save() {
+    setIsSaving(true);
+    setNotice("Đang tối ưu ảnh và lưu projects...");
+
+    try {
+      const optimizedProjects = await Promise.all(projects.map(optimizeProjectImages));
+      setProjects(optimizedProjects);
+      const saved = await content.saveProjects(optimizedProjects.map(fromEditableProject));
+      setNotice(saved
+        ? "Đã tối ưu ảnh và lưu danh sách projects."
+        : "Chưa lưu được lên kho dữ liệu. Bản chỉnh sửa vẫn còn trong localStorage.");
+    } catch (error) {
+      console.warn("Unable to optimize project images", error);
+      setNotice("Không thể tối ưu ảnh. Vui lòng chọn ảnh khác rồi thử lại.");
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function reset() {
@@ -2676,7 +2766,9 @@ function ProjectsEditor() {
         <div className="admin-actions">
           <button className="button ghost" type="button" onClick={addProject}>Thêm project</button>
           <button className="button secondary" type="button" onClick={reset}>Reset</button>
-          <button className="button" type="button" onClick={save}>Lưu Projects</button>
+          <button className="button" type="button" onClick={save} disabled={isSaving}>
+            {isSaving ? "Đang lưu..." : "Lưu Projects"}
+          </button>
         </div>
       </div>
       {notice ? <p className="admin-notice">{notice}</p> : null}
@@ -2721,6 +2813,7 @@ function ProjectsEditor() {
                   label="Upload App demo image"
                   accept="image/*"
                   fileName={activeProject.app_demo_file_name}
+                  imageOptions={PROJECT_IMAGE_OPTIONS}
                   onFileReady={(dataUrl, fileName) => updateActive({ app_demo_image_url: dataUrl, app_demo_file_name: fileName })}
                 />
                 {activeProject.app_demo_image_url ? (
@@ -2733,6 +2826,7 @@ function ProjectsEditor() {
                   label="Upload Web demo image"
                   accept="image/*"
                   fileName={activeProject.web_demo_file_name}
+                  imageOptions={PROJECT_IMAGE_OPTIONS}
                   onFileReady={(dataUrl, fileName) => updateActive({ web_demo_image_url: dataUrl, web_demo_file_name: fileName })}
                 />
                 {activeProject.web_demo_image_url ? (
