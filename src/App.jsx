@@ -2027,34 +2027,13 @@ function ProjectsPage() {
   );
 }
 
-function ProjectDemoImages({ project }) {
-  const demos = [
-    { label: "App demo", src: project.app_demo_image_url, kind: "mobile" },
-    { label: "Web demo", src: project.web_demo_image_url, kind: "portfolio" }
-  ].filter((item) => item.src);
-
-  if (!demos.length) return null;
-
-  return (
-    <section className="project-demo-section" aria-labelledby="project-demo-title">
-      <div className="section-title compact">
-        <p className="kicker">Demo images</p>
-        <h2 id="project-demo-title">App / Web demo</h2>
-      </div>
-      <div className="project-demo-grid">
-        {demos.map((demo) => (
-          <article className="project-demo-card" key={demo.label}>
-            <h3>{demo.label}</h3>
-            <ImageWithFallback src={demo.src} alt={`${project.title} ${demo.label}`} kind={demo.kind} className="project-demo-image" />
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 function ProjectDetailContent({ projectData }) {
   const project = normalizeProject(projectData);
+  const heroImageUrl = coalesce(
+    project.app_demo_image_url,
+    project.web_demo_image_url,
+    project.cover_url
+  );
 
   return (
     <main className="detail-shell">
@@ -2075,10 +2054,11 @@ function ProjectDetailContent({ projectData }) {
         </div>
         <div className="detail-cover">
           <ImageWithFallback
-            src={project.cover_url}
-            alt={project.title}
+            src={heroImageUrl}
+            alt={`${project.title} demo`}
             kind={project.visual_kind}
             size="cover"
+            className="project-detail-demo-banner"
           />
         </div>
       </section>
@@ -2089,7 +2069,6 @@ function ProjectDetailContent({ projectData }) {
             {project.demo_url ? <ButtonLink href={project.demo_url} label="View Live Demo" external /> : null}
             {project.github_url ? <ButtonLink href={project.github_url} label="View on GitHub" variant="secondary" external /> : null}
           </div>
-          <ProjectDemoImages project={project} />
           <article className="markdown-content">
             <ReactMarkdown>{project.content}</ReactMarkdown>
           </article>
